@@ -138,6 +138,10 @@
             <div id="gesture-feedback" style="position: absolute; top: 10px; right: 10px; background: rgba(0, 229, 255, 0.2); padding: 5px 12px; border-radius: 20px; font-weight: bold; color: var(--accent-color); opacity: 0; transition: opacity 0.3s; border: 1px solid var(--accent-color);">
                 DETECTED: <span id="last-gesture">-</span>
             </div>
+            <div id="status-activation" style="position: absolute; bottom: 10px; left: 10px; display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 12px; font-size: 12px; border: 1px solid rgba(255,255,255,0.1);">
+                <div id="activation-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #4CAF50; box-shadow: 0 0 8px #4CAF50;"></div>
+                <span id="activation-text">Tracking Active</span>
+            </div>
         </div>
         <div class="log-area" id="log">
             Awaiting gestures...
@@ -217,6 +221,21 @@
             <label>
                 <input type="checkbox" id="setting-autolaunch"> Launch at Login
             </label>
+        </div>
+
+        <h2 style="margin-top: 30px;">Activation Control</h2>
+        <div class="setting-group">
+            <label>
+                <input type="checkbox" id="setting-require-key"> Only track when key is held
+            </label>
+        </div>
+        <div class="setting-group" id="group-activation-key" style="opacity: 0.5; pointer-events: none; transition: all 0.3s;">
+            <label>Select Activation Key</label>
+            <select id="setting-activation-key">
+                <option value="Command">Command (⌘)</option>
+                <option value="Option" selected>Option (⌥)</option>
+                <option value="Control">Control (⌃)</option>
+            </select>
         </div>
 
     </div>

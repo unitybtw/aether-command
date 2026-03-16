@@ -59,6 +59,7 @@ class AetherCommandRenderer {
     private frameCount = 0;
     private lastHandDetectionTime = 0;
     private gestureTimeout: any = null;
+    private isActivated = true;
     
     // State to handle debouncing and duplicate triggers
     private lastActionTimes: Map<string, number> = new Map();
@@ -72,16 +73,58 @@ class AetherCommandRenderer {
         this.tracker = new HandTracker();
         this.gesture = new GestureEngine();
 
-        this.init();
+        this.initialize();
     }
 
-    private async init() {
-        await this.loadSettings();
-        this.setupEventListeners();
-        await this.initCamera();
+    async initialize() {
+        this.log('Initializing Renderer...');
+        
+        // 1. Initial State Sync
+        const settings = await window.electronAPI.getSettings();
+        this.updateUIFromSettings(settings);
+        this.lerpAmount = settings.smoothing;
+        this.setupEventListeners(); // Ensure event listeners are set up after UI is updated
+
+        // Initial activation state
+        const initialState = await (window as any).ipcRenderer.invoke('get-activation-state');
+        this.isActivated = initialState !== false; // Default to true if not exactly false
+        this.updateActivationStatusUI(this.isActivated);
+
+        // Listen for changes
+        (window as any).ipcRenderer.on('activation-state-changed', (_event: any, state: boolean) => {
+            this.isActivated = state;
+            this.updateActivationStatusUI(state);
+        });
+
+        // 2. Camera setup
+        const hasCamera = await this.initCamera();
+        if (!hasCamera) {
+            this.log('Critical: No camera found or access denied.');
+            return;
+        }
+
+        // 3. MediaPipe setup
+        await this.tracker.initialize();
+        this.log('Tracker: Machine Learning ready.');
+
+        // 4. Start loop
+        this.isRunning = true;
+        this.loop();
+    }
+
+    private updateActivationStatusUI(active: boolean) {
+        const dot = document.getElementById('activation-dot');
+        const text = document.getElementById('activation-text');
+        if (!dot || !text) return;
+
+        dot.style.background = active ? '#4CAF50' : '#FF5252';
+        dot.style.boxShadow = active ? '0 0 8px #4CAF50' : '0 0 8px #FF5252';
+        text.innerText = active ? 'Tracking Active' : 'Tracking Suspended (Hold Key)';
     }
 
     private async loadSettings() {
+        // This method is now largely superseded by the initial settings load in initialize()
+        // but kept for potential future direct calls or clarity.
         try {
             const settings = await window.electronAPI.getSettings();
             this.lerpAmount = settings.smoothing;
@@ -93,9 +136,11 @@ class AetherCommandRenderer {
     }
 
     private updateUIFromSettings(settings: any) {
-        const uiMap: Record<string, any> = {
+        const uiMap: any = {
             'setting-smoothing': settings.smoothing,
             'setting-autolaunch': settings.openAtLogin,
+            'setting-require-key': settings.requireKey,
+            'setting-activation-key': settings.activationKey,
             'map-pinch': settings.mappings.pinch,
             'map-fist': settings.mappings.fist,
             'map-palm': settings.mappings.palm,
@@ -103,20 +148,38 @@ class AetherCommandRenderer {
         };
 
         for (const [id, value] of Object.entries(uiMap)) {
-            const el = document.getElementById(id) as any;
+            const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement;
             if (el) {
-                if (el.type === 'checkbox') el.checked = value;
-                else el.value = value.toString();
+                if (el.type === 'checkbox') (el as HTMLInputElement).checked = value as boolean;
+                else el.value = (value as any).toString();
             }
+        }
+        this.updateActivationUIState(settings.requireKey);
+    }
+
+    private updateActivationUIState(enabled: boolean) {
+        const group = document.getElementById('group-activation-key');
+        if (group) {
+            group.style.opacity = enabled ? '1' : '0.5';
+            group.style.pointerEvents = enabled ? 'all' : 'none';
         }
     }
 
     private setupEventListeners() {
-        const uiElements = ['setting-smoothing', 'setting-autolaunch', 'map-pinch', 'map-fist', 'map-palm', 'map-swipe'];
+        const uiElements = [
+            'setting-smoothing', 'setting-autolaunch', 
+            'setting-require-key', 'setting-activation-key',
+            'map-pinch', 'map-fist', 'map-palm', 'map-swipe'
+        ];
         uiElements.forEach(id => {
             const el = document.getElementById(id);
             if (el) {
-                el.addEventListener('change', () => this.handleSettingChange());
+                el.addEventListener('change', () => {
+                    if (id === 'setting-require-key') {
+                        this.updateActivationUIState((el as HTMLInputElement).checked);
+                    }
+                    this.handleSettingChange();
+                });
             }
         });
     }
@@ -130,7 +193,9 @@ class AetherCommandRenderer {
                 swipe: (document.getElementById('map-swipe') as HTMLSelectElement).value,
             },
             smoothing: parseFloat((document.getElementById('setting-smoothing') as HTMLInputElement).value),
-            openAtLogin: (document.getElementById('setting-autolaunch') as HTMLInputElement).checked
+            openAtLogin: (document.getElementById('setting-autolaunch') as HTMLInputElement).checked,
+            requireKey: (document.getElementById('setting-require-key') as HTMLInputElement).checked,
+            activationKey: (document.getElementById('setting-activation-key') as HTMLSelectElement).value
         };
 
         this.lerpAmount = settings.smoothing;
@@ -139,7 +204,7 @@ class AetherCommandRenderer {
         this.log('Settings saved.');
     }
 
-    private async initCamera() {
+    private async initCamera(): Promise<boolean> {
         this.log('Camera: Enumerating devices...');
         
         // Global error capture for the renderer
@@ -167,30 +232,24 @@ class AetherCommandRenderer {
             this.log('Camera: Stream obtained.');
             this.video.srcObject = stream;
             
-            this.video.onloadeddata = async () => {
-                this.log('Camera: Video data loaded.');
-                this.statusEl.innerText = "Initializing Machine Learning...";
-                try {
-                    await this.tracker.initialize();
-                    this.log('Tracker: Machine Learning ready.');
-                    this.statusEl.innerText = "Tracking Active";
-                    this.isRunning = true;
-                    this.loop();
-                } catch (trackerError) {
-                    this.log('Tracker Error: initialization failed.');
-                    console.error('Tracker Error:', trackerError);
-                }
-            };
+            return new Promise((resolve) => {
+                this.video.onloadeddata = () => {
+                    this.log('Camera: Video data loaded.');
+                    resolve(true);
+                };
 
-            this.video.onerror = (e) => {
-                this.log('Camera Error: Video element error.');
-                console.error('Video Error:', e);
-            };
+                this.video.onerror = (e) => {
+                    this.log('Camera Error: Video element error.');
+                    console.error('Video Error:', e);
+                    resolve(false);
+                };
+            });
         } catch (error: any) {
             this.log(`Camera Error: ${error.name} - ${error.message}`);
             this.statusEl.innerText = "Camera Denied/Error";
             this.statusEl.style.color = "#ff4b2b";
             console.error('Camera Access Error:', error);
+            return false;
         }
     }
 
@@ -201,9 +260,14 @@ class AetherCommandRenderer {
             const result = this.tracker.detect(this.video, performance.now());
             
             if (result && result.landmarks && result.landmarks.length > 0) {
-                const state = this.gesture.process(result.landmarks[0]);
-                this.handleGestureState(state);
-                this.updateGestureUI(state);
+                // Only process gestures if activated (key held or feature off)
+                if (this.isActivated) {
+                    const state = this.gesture.process(result.landmarks[0]);
+                    this.handleGestureState(state);
+                    this.updateGestureUI(state);
+                } else {
+                    this.updateGestureUI(null);
+                }
                 this.lastHandDetectionTime = Date.now();
             } else {
                 // If hand lost for more than 2 seconds, log once

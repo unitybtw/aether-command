@@ -11,6 +11,8 @@ export interface AppSettings {
     };
     smoothing: number;
     openAtLogin: boolean;
+    requireKey: boolean;
+    activationKey: 'Command' | 'Option' | 'Control';
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -21,7 +23,9 @@ const DEFAULT_SETTINGS: AppSettings = {
         swipe: 'SPACES'
     },
     smoothing: 0.5,
-    openAtLogin: false
+    openAtLogin: false,
+    requireKey: false,
+    activationKey: 'Command'
 };
 
 export class SettingsManager {

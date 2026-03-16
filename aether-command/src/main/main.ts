@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, systemPreferences } from 'electron';
+import { exec } from 'child_process';
 import * as path from 'path';
 import { SettingsManager } from './SettingsManager';
 import { SystemService } from './SystemService';
@@ -106,26 +107,85 @@ app.whenReady().then(async () => {
   createTray();
   createWindow();
   createHudWindow();
+  updateActivationPolling();
 });
 
 // IPC Handlers
+let isKeyHeld = true;
+let activationPollTimer: NodeJS.Timeout | null = null;
+
+const stopActivationPolling = () => {
+    if (activationPollTimer) {
+        clearInterval(activationPollTimer);
+        activationPollTimer = null;
+    }
+    isKeyHeld = true;
+    mainWindow?.webContents.send('activation-state-changed', true);
+};
+
+const startActivationPolling = () => {
+    if (activationPollTimer) return;
+    
+    activationPollTimer = setInterval(() => {
+        const settings = settingsManager.getSettings();
+        if (!settings.requireKey) {
+            stopActivationPolling();
+            return;
+        }
+
+        const maskMap: Record<string, number> = {
+            'Command': 1048576,
+            'Option': 524288,
+            'Control': 262144
+        };
+        const mask = maskMap[settings.activationKey] || 1048576;
+
+        const script = `use framework "AppKit"
+        return (current application's NSEvent's modifierFlags() div ${mask} mod 2) > 0`;
+
+        exec(`osascript -e '${script}'`, (err: Error | null, stdout: string) => {
+            if (!err) {
+                const held = stdout.trim() === 'true';
+                if (held !== isKeyHeld) {
+                    isKeyHeld = held;
+                    mainWindow?.webContents.send('activation-state-changed', held);
+                }
+            }
+        });
+    }, 150);
+};
+
+const updateActivationPolling = () => {
+    const settings = settingsManager.getSettings();
+    if (settings.requireKey) {
+        startActivationPolling();
+    } else {
+        stopActivationPolling();
+    }
+};
+
 ipcMain.on('renderer-log', (event, level, msg) => {
     console.log(`[Renderer ${level.toUpperCase()}] ${msg}`);
 });
 
 ipcMain.on('gesture-action', (event, action) => {
-    // 1. Trigger HUD
+    if (!isKeyHeld) {
+        console.log('[Main] Gesture blocked: Activation key NOT held.');
+        return;
+    }
     if (hudWindow) {
         if (!hudWindow.isVisible()) hudWindow.showInactive();
         hudWindow.webContents.send('show-hud', action);
     }
-
-    // 2. Execute System Action
     systemService.execute(action);
 });
 
 ipcMain.handle('get-settings', () => settingsManager.getSettings());
-ipcMain.on('save-settings', (event, settings) => settingsManager.updateSettings(settings));
+
+ipcMain.on('save-settings', (event, settings) => {
+    settingsManager.updateSettings(settings);
+    updateActivationPolling();
+});
 
 ipcMain.on('set-login-item', (event, openAtLogin) => {
     app.setLoginItemSettings({
@@ -137,6 +197,8 @@ ipcMain.on('set-login-item', (event, openAtLogin) => {
 ipcMain.handle('get-login-item', () => {
     return app.getLoginItemSettings().openAtLogin;
 });
+
+ipcMain.handle('get-activation-state', () => isKeyHeld);
 
 // Window management
 app.on('window-all-closed', () => {

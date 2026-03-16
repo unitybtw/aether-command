@@ -165,8 +165,6 @@ export class AetherEngine {
 
     private drawSkeleton(hands: any[][]) {
         this.ctx.save();
-        this.ctx.translate(this.canvas.width, 0);
-        this.ctx.scale(-1, 1);
 
         const connections = [
             [0, 1, 2, 3, 4], // Thumb
@@ -180,7 +178,7 @@ export class AetherEngine {
         hands.forEach(landmarks => {
             // Draw points (glitter effect)
             landmarks.forEach((pt, i) => {
-                const x = pt.x * this.canvas.width;
+                const x = (1 - pt.x) * this.canvas.width;
                 const y = pt.y * this.canvas.height;
                 this.ctx.fillStyle = i % 4 === 0 ? "#fff" : "#00e5ff";
                 this.ctx.beginPath();
@@ -196,7 +194,7 @@ export class AetherEngine {
                 path.forEach((idx, i) => {
                     const pt = landmarks[idx];
                     if (!pt) return;
-                    const x = pt.x * this.canvas.width;
+                    const x = (1 - pt.x) * this.canvas.width;
                     const y = pt.y * this.canvas.height;
                     if (i === 0) this.ctx.moveTo(x, y);
                     else this.ctx.lineTo(x, y);

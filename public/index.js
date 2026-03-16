@@ -4061,7 +4061,7 @@ var HandTracker = class {
     this.handLandmarker = await Uc.createFromOptions(vision, {
       baseOptions: {
         modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
-        delegate: "GPU"
+        delegate: "CPU"
       },
       runningMode: "VIDEO",
       numHands: 2,
@@ -4205,12 +4205,10 @@ var VFXManager = class {
     this.ctx.moveTo(pts[0].x, pts[0].y);
     pts.forEach((p2) => this.ctx.lineTo(p2.x, p2.y));
     this.ctx.closePath();
-    this.ctx.shadowBlur = 30;
-    this.ctx.shadowColor = "rgba(0, 229, 255, 0.4)";
-    this.ctx.fillStyle = "rgba(0, 229, 255, 0.05)";
+    this.ctx.fillStyle = "rgba(0, 229, 255, 0.15)";
     this.ctx.fill();
-    this.ctx.strokeStyle = "rgba(0, 229, 255, 0.2)";
-    this.ctx.lineWidth = 1;
+    this.ctx.strokeStyle = "rgba(0, 229, 255, 0.4)";
+    this.ctx.lineWidth = 2;
     this.ctx.stroke();
     this.ctx.restore();
   }
@@ -4340,8 +4338,6 @@ var AetherEngine = class {
   }
   drawSkeleton(hands) {
     this.ctx.save();
-    this.ctx.translate(this.canvas.width, 0);
-    this.ctx.scale(-1, 1);
     const connections = [
       [0, 1, 2, 3, 4],
       // Thumb
@@ -4358,7 +4354,7 @@ var AetherEngine = class {
     ];
     hands.forEach((landmarks) => {
       landmarks.forEach((pt2, i2) => {
-        const x2 = pt2.x * this.canvas.width;
+        const x2 = (1 - pt2.x) * this.canvas.width;
         const y2 = pt2.y * this.canvas.height;
         this.ctx.fillStyle = i2 % 4 === 0 ? "#fff" : "#00e5ff";
         this.ctx.beginPath();
@@ -4372,7 +4368,7 @@ var AetherEngine = class {
         path.forEach((idx, i2) => {
           const pt2 = landmarks[idx];
           if (!pt2) return;
-          const x2 = pt2.x * this.canvas.width;
+          const x2 = (1 - pt2.x) * this.canvas.width;
           const y2 = pt2.y * this.canvas.height;
           if (i2 === 0) this.ctx.moveTo(x2, y2);
           else this.ctx.lineTo(x2, y2);

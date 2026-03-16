@@ -22,39 +22,21 @@ const checkPermissions = async () => {
 const createTray = () => {
     try {
         const iconPath = path.join(__dirname, '..', '..', 'src', 'assets', 'iconTemplate.png');
-        console.log(`[Main] Initializing Tray. Looking for icon at: ${iconPath}`);
-        
-        if (!require('fs').existsSync(iconPath)) {
-            console.error(`[Main] CRITICAL: Tray icon not found at ${iconPath}`);
-        }
-
         const icon = nativeImage.createFromPath(iconPath).resize({ width: 18, height: 18 });
         
-        if (icon.isEmpty()) {
-            console.error(`[Main] ERROR: nativeImage could not load the icon at ${iconPath}. Image is empty.`);
-        }
-
-        icon.setTemplateImage(true);
-
+        // Removed setTemplateImage(true) to support color icons
         tray = new Tray(icon);
         const contextMenu = Menu.buildFromTemplate([
             { label: 'Aether Control v1.5', enabled: false },
             { type: 'separator' },
-            { label: 'Dashboard', click: () => {
-                console.log('[Main] Tray clicked: Opening Dashboard');
-                mainWindow?.show();
-            }},
-            { label: 'Quit', click: () => {
-                console.log('[Main] Tray clicked: Quitting App');
-                app.quit();
-            }}
+            { label: 'Dashboard', click: () => mainWindow?.show() },
+            { label: 'Quit', click: () => app.quit() }
         ]);
 
         tray.setToolTip('Aether Command');
         tray.setContextMenu(contextMenu);
-        console.log('[Main] Tray icon successfully created and pinned to Menu Bar.');
     } catch (error) {
-        console.error('[Main] CRITICAL ERROR during Tray creation:', error);
+        console.error('[Main] Tray creation failed:', error);
     }
 };
 
@@ -62,12 +44,12 @@ const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 900,
     height: 700,
-    show: false,
+    show: true, // Explicitly show on launch so user knows it's working
     frame: false,
     transparent: true,
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false, // For simplicity in this build
+      contextIsolation: false,
     }
   });
 

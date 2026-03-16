@@ -54,9 +54,8 @@ export class AetherEngine {
 
     private lastResults: any = null;
     private lastSeenTime: number = 0;
-
-    private lastSmoothLandmarks: any[] = [];
-    private lerpAmount: number = 0.4;
+    private smoothedHands: any[][] = [];
+    private lerpAmount: number = 0.6; // Increased for better responsiveness
 
     private loop() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -70,27 +69,29 @@ export class AetherEngine {
                 this.lastSeenTime = now;
             }
 
-            if (now - this.lastSeenTime > 2000) this.lastResults = null;
+            // Clear persistence if gone for > 1.5s (reduced from 2s for less ghosting)
+            if (now - this.lastSeenTime > 1500) this.lastResults = null;
 
             const activeResults = rawResults || this.lastResults;
 
-            if (!activeResults || activeResults.landmarks.length === 0) {
+            if (!activeResults || !activeResults.landmarks || activeResults.landmarks.length === 0) {
                 this.vfx.drawSearchPulse(this.canvas.width, this.canvas.height);
+                this.smoothedHands = []; // Reset smoothing when hands are lost
             }
 
-            if (activeResults && activeResults.landmarks && activeResults.landmarks.length > 0) {
-                activeResults.landmarks.forEach((landmarks: any) => {
-                    // Smoothing logic
-                    if (this.lastSmoothLandmarks.length === 0) {
-                        this.lastSmoothLandmarks = JSON.parse(JSON.stringify(landmarks));
+            if (activeResults && activeResults.landmarks) {
+                activeResults.landmarks.forEach((landmarks: any, hIdx: number) => {
+                    // Initialize or update smoothed landmarks for THIS hand index
+                    if (!this.smoothedHands[hIdx]) {
+                        this.smoothedHands[hIdx] = JSON.parse(JSON.stringify(landmarks));
                     } else {
                         landmarks.forEach((pt: any, i: number) => {
-                            this.lastSmoothLandmarks[i].x += (pt.x - this.lastSmoothLandmarks[i].x) * this.lerpAmount;
-                            this.lastSmoothLandmarks[i].y += (pt.y - this.lastSmoothLandmarks[i].y) * this.lerpAmount;
+                            this.smoothedHands[hIdx][i].x += (pt.x - this.smoothedHands[hIdx][i].x) * this.lerpAmount;
+                            this.smoothedHands[hIdx][i].y += (pt.y - this.smoothedHands[hIdx][i].y) * this.lerpAmount;
                         });
                     }
                     
-                    const smoothed = this.lastSmoothLandmarks;
+                    const smoothed = this.smoothedHands[hIdx];
                     const state = this.gesture.process(smoothed);
                     
                     // VFX: Glass Overlay
@@ -100,30 +101,23 @@ export class AetherEngine {
                     const indexTip = smoothed[8];
                     const vx = (1 - indexTip.x) * this.canvas.width; 
                     const vy = indexTip.y * this.canvas.height;
-                
-                // VFX: Update dynamic color based on position
-                const hue = Math.floor((vx / this.canvas.width) * 360);
-                this.vfx.setBaseColor(`rgb(${this.hslToRgb(hue, 1, 0.5)})`);
-
-                this.vfx.drawTrail(vx, vy, state.pinchStrength);
-
-                // VFX: Burst on pinch start
-                if (state.isPinching && !this.wasPinching) {
-                    this.vfx.createBurst(vx, vy, 30);
-                    this.emit('PINCH_START', { x: vx, y: vy });
                     
-                    // Haptic feedback
-                    if ("vibrate" in navigator) {
-                        navigator.vibrate(20);
-                    }
-                } else if (!state.isPinching && this.wasPinching) {
-                    this.emit('PINCH_END', { x: vx, y: vy });
-                }
-                this.wasPinching = state.isPinching;
-            });
+                    const hue = Math.floor((vx / this.canvas.width) * 360);
+                    this.vfx.setBaseColor(`rgb(${this.hslToRgb(hue, 1, 0.5)})`);
+                    this.vfx.drawTrail(vx, vy, state.pinchStrength);
 
-            this.drawSkeleton(activeResults.landmarks);
-        }
+                    if (state.isPinching && !this.wasPinching) {
+                        this.vfx.createBurst(vx, vy, 30);
+                        this.emit('PINCH_START', { x: vx, y: vy });
+                        if ("vibrate" in navigator) navigator.vibrate(20);
+                    } else if (!state.isPinching && this.wasPinching) {
+                        this.emit('PINCH_END', { x: vx, y: vy });
+                    }
+                    this.wasPinching = state.isPinching;
+                });
+
+                this.drawSkeleton(this.smoothedHands);
+            }
 
         } catch (error) {
             console.error("[Aether Loop Error]", error);

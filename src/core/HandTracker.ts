@@ -29,9 +29,9 @@ export class HandTracker {
             },
             runningMode: "VIDEO",
             numHands: 2,
-            minHandDetectionConfidence: 0.5,
-            minHandPresenceConfidence: 0.5,
-            minTrackingConfidence: 0.5
+            minHandDetectionConfidence: 0.7,
+            minHandPresenceConfidence: 0.7,
+            minTrackingConfidence: 0.7
         });
 
         this.isInitialized = true;

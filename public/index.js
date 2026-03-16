@@ -4065,9 +4065,9 @@ var HandTracker = class {
       },
       runningMode: "VIDEO",
       numHands: 2,
-      minHandDetectionConfidence: 0.5,
-      minHandPresenceConfidence: 0.5,
-      minTrackingConfidence: 0.5
+      minHandDetectionConfidence: 0.7,
+      minHandPresenceConfidence: 0.7,
+      minTrackingConfidence: 0.7
     });
     this.isInitialized = true;
     console.log("[Aether Tracker] Hand Landmarker initialized.");
@@ -4253,8 +4253,9 @@ var AetherEngine = class {
   }
   lastResults = null;
   lastSeenTime = 0;
-  lastSmoothLandmarks = [];
-  lerpAmount = 0.4;
+  smoothedHands = [];
+  lerpAmount = 0.6;
+  // Increased for better responsiveness
   loop() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     try {
@@ -4264,22 +4265,23 @@ var AetherEngine = class {
         this.lastResults = rawResults;
         this.lastSeenTime = now;
       }
-      if (now - this.lastSeenTime > 2e3) this.lastResults = null;
+      if (now - this.lastSeenTime > 1500) this.lastResults = null;
       const activeResults = rawResults || this.lastResults;
-      if (!activeResults || activeResults.landmarks.length === 0) {
+      if (!activeResults || !activeResults.landmarks || activeResults.landmarks.length === 0) {
         this.vfx.drawSearchPulse(this.canvas.width, this.canvas.height);
+        this.smoothedHands = [];
       }
-      if (activeResults && activeResults.landmarks && activeResults.landmarks.length > 0) {
-        activeResults.landmarks.forEach((landmarks) => {
-          if (this.lastSmoothLandmarks.length === 0) {
-            this.lastSmoothLandmarks = JSON.parse(JSON.stringify(landmarks));
+      if (activeResults && activeResults.landmarks) {
+        activeResults.landmarks.forEach((landmarks, hIdx) => {
+          if (!this.smoothedHands[hIdx]) {
+            this.smoothedHands[hIdx] = JSON.parse(JSON.stringify(landmarks));
           } else {
             landmarks.forEach((pt2, i2) => {
-              this.lastSmoothLandmarks[i2].x += (pt2.x - this.lastSmoothLandmarks[i2].x) * this.lerpAmount;
-              this.lastSmoothLandmarks[i2].y += (pt2.y - this.lastSmoothLandmarks[i2].y) * this.lerpAmount;
+              this.smoothedHands[hIdx][i2].x += (pt2.x - this.smoothedHands[hIdx][i2].x) * this.lerpAmount;
+              this.smoothedHands[hIdx][i2].y += (pt2.y - this.smoothedHands[hIdx][i2].y) * this.lerpAmount;
             });
           }
-          const smoothed = this.lastSmoothLandmarks;
+          const smoothed = this.smoothedHands[hIdx];
           const state = this.gesture.process(smoothed);
           this.vfx.drawGlassOverlay(smoothed, this.canvas.width, this.canvas.height);
           const indexTip = smoothed[8];
@@ -4291,15 +4293,13 @@ var AetherEngine = class {
           if (state.isPinching && !this.wasPinching) {
             this.vfx.createBurst(vx, vy, 30);
             this.emit("PINCH_START", { x: vx, y: vy });
-            if ("vibrate" in navigator) {
-              navigator.vibrate(20);
-            }
+            if ("vibrate" in navigator) navigator.vibrate(20);
           } else if (!state.isPinching && this.wasPinching) {
             this.emit("PINCH_END", { x: vx, y: vy });
           }
           this.wasPinching = state.isPinching;
         });
-        this.drawSkeleton(activeResults.landmarks);
+        this.drawSkeleton(this.smoothedHands);
       }
     } catch (error) {
       console.error("[Aether Loop Error]", error);

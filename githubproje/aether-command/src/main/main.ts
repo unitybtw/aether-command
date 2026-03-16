@@ -7,8 +7,8 @@ let mainWindow: BrowserWindow | null = null;
 let hudWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 
-const settingsManager = new SettingsManager();
-const systemService = new SystemService();
+let settingsManager: SettingsManager;
+let systemService: SystemService;
 
 const checkPermissions = async () => {
   if (process.platform !== 'darwin') return;
@@ -20,20 +20,42 @@ const checkPermissions = async () => {
 };
 
 const createTray = () => {
-    const iconPath = path.join(__dirname, '..', '..', 'src', 'assets', 'iconTemplate.png');
-    const icon = nativeImage.createFromPath(iconPath).resize({ width: 18, height: 18 });
-    icon.setTemplateImage(true);
+    try {
+        const iconPath = path.join(__dirname, '..', '..', 'src', 'assets', 'iconTemplate.png');
+        console.log(`[Main] Initializing Tray. Looking for icon at: ${iconPath}`);
+        
+        if (!require('fs').existsSync(iconPath)) {
+            console.error(`[Main] CRITICAL: Tray icon not found at ${iconPath}`);
+        }
 
-    tray = new Tray(icon);
-    const contextMenu = Menu.buildFromTemplate([
-        { label: 'Aether Control', enabled: false },
-        { type: 'separator' },
-        { label: 'Dashboard', click: () => mainWindow?.show() },
-        { label: 'Quit', click: () => app.quit() }
-    ]);
+        const icon = nativeImage.createFromPath(iconPath).resize({ width: 18, height: 18 });
+        
+        if (icon.isEmpty()) {
+            console.error(`[Main] ERROR: nativeImage could not load the icon at ${iconPath}. Image is empty.`);
+        }
 
-    tray.setToolTip('Aether Command');
-    tray.setContextMenu(contextMenu);
+        icon.setTemplateImage(true);
+
+        tray = new Tray(icon);
+        const contextMenu = Menu.buildFromTemplate([
+            { label: 'Aether Control v1.5', enabled: false },
+            { type: 'separator' },
+            { label: 'Dashboard', click: () => {
+                console.log('[Main] Tray clicked: Opening Dashboard');
+                mainWindow?.show();
+            }},
+            { label: 'Quit', click: () => {
+                console.log('[Main] Tray clicked: Quitting App');
+                app.quit();
+            }}
+        ]);
+
+        tray.setToolTip('Aether Command');
+        tray.setContextMenu(contextMenu);
+        console.log('[Main] Tray icon successfully created and pinned to Menu Bar.');
+    } catch (error) {
+        console.error('[Main] CRITICAL ERROR during Tray creation:', error);
+    }
 };
 
 const createWindow = () => {
@@ -73,6 +95,10 @@ const createHudWindow = () => {
 };
 
 app.whenReady().then(async () => {
+  // Initialize services after app is ready
+  settingsManager = new SettingsManager();
+  systemService = new SystemService();
+
   app.dock.hide();
   
   await checkPermissions();

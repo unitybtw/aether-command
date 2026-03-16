@@ -4251,27 +4251,43 @@ var AetherEngine = class {
     this.ctx.save();
     this.ctx.translate(this.canvas.width, 0);
     this.ctx.scale(-1, 1);
+    const connections = [
+      [0, 1, 2, 3, 4],
+      // Thumb
+      [0, 5, 6, 7, 8],
+      // Index
+      [9, 10, 11, 12],
+      // Middle
+      [13, 14, 15, 16],
+      // Ring
+      [0, 17, 18, 19, 20],
+      // Pinky
+      [5, 9, 13, 17]
+      // Palm base
+    ];
     hands.forEach((landmarks) => {
-      this.ctx.fillStyle = "#00e5ff";
-      this.ctx.shadowBlur = 10;
-      this.ctx.shadowColor = "#00e5ff";
-      landmarks.forEach((pt2) => {
-        const x2 = pt2.x * this.canvas.width;
-        const y2 = pt2.y * this.canvas.height;
-        this.ctx.beginPath();
-        this.ctx.arc(x2, y2, 4, 0, Math.PI * 2);
-        this.ctx.fill();
-      });
-      this.ctx.strokeStyle = "rgba(0, 229, 255, 0.5)";
-      this.ctx.lineWidth = 2;
-      this.ctx.beginPath();
       landmarks.forEach((pt2, i2) => {
         const x2 = pt2.x * this.canvas.width;
         const y2 = pt2.y * this.canvas.height;
-        if (i2 === 0) this.ctx.moveTo(x2, y2);
-        else this.ctx.lineTo(x2, y2);
+        this.ctx.fillStyle = i2 % 4 === 0 ? "#fff" : "#00e5ff";
+        this.ctx.beginPath();
+        this.ctx.arc(x2, y2, 3, 0, Math.PI * 2);
+        this.ctx.fill();
       });
-      this.ctx.stroke();
+      this.ctx.strokeStyle = "rgba(0, 229, 255, 0.3)";
+      this.ctx.lineWidth = 1.5;
+      connections.forEach((path) => {
+        this.ctx.beginPath();
+        path.forEach((idx, i2) => {
+          const pt2 = landmarks[idx];
+          if (!pt2) return;
+          const x2 = pt2.x * this.canvas.width;
+          const y2 = pt2.y * this.canvas.height;
+          if (i2 === 0) this.ctx.moveTo(x2, y2);
+          else this.ctx.lineTo(x2, y2);
+        });
+        this.ctx.stroke();
+      });
     });
     this.ctx.restore();
   }

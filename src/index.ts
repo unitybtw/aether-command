@@ -100,35 +100,44 @@ export class AetherEngine {
 
     private drawSkeleton(hands: any[][]) {
         this.ctx.save();
-        // Mirror the canvas to match mirrored video
         this.ctx.translate(this.canvas.width, 0);
         this.ctx.scale(-1, 1);
 
+        const connections = [
+            [0, 1, 2, 3, 4], // Thumb
+            [0, 5, 6, 7, 8], // Index
+            [9, 10, 11, 12], // Middle
+            [13, 14, 15, 16], // Ring
+            [0, 17, 18, 19, 20], // Pinky
+            [5, 9, 13, 17] // Palm base
+        ];
+
         hands.forEach(landmarks => {
-            // Draw points
-            this.ctx.fillStyle = "#00e5ff";
-            this.ctx.shadowBlur = 10;
-            this.ctx.shadowColor = "#00e5ff";
-
-            landmarks.forEach(pt => {
-                const x = pt.x * this.canvas.width;
-                const y = pt.y * this.canvas.height;
-                this.ctx.beginPath();
-                this.ctx.arc(x, y, 4, 0, Math.PI * 2);
-                this.ctx.fill();
-            });
-
-            // Draw simple connections (simplified for now)
-            this.ctx.strokeStyle = "rgba(0, 229, 255, 0.5)";
-            this.ctx.lineWidth = 2;
-            this.ctx.beginPath();
+            // Draw points (glitter effect)
             landmarks.forEach((pt, i) => {
                 const x = pt.x * this.canvas.width;
                 const y = pt.y * this.canvas.height;
-                if (i === 0) this.ctx.moveTo(x, y);
-                else this.ctx.lineTo(x, y);
+                this.ctx.fillStyle = i % 4 === 0 ? "#fff" : "#00e5ff";
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, 3, 0, Math.PI * 2);
+                this.ctx.fill();
             });
-            this.ctx.stroke();
+
+            // Draw connections
+            this.ctx.strokeStyle = "rgba(0, 229, 255, 0.3)";
+            this.ctx.lineWidth = 1.5;
+            connections.forEach(path => {
+                this.ctx.beginPath();
+                path.forEach((idx, i) => {
+                    const pt = landmarks[idx];
+                    if (!pt) return;
+                    const x = pt.x * this.canvas.width;
+                    const y = pt.y * this.canvas.height;
+                    if (i === 0) this.ctx.moveTo(x, y);
+                    else this.ctx.lineTo(x, y);
+                });
+                this.ctx.stroke();
+            });
         });
         this.ctx.restore();
     }

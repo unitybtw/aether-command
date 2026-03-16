@@ -4253,9 +4253,9 @@ var AetherEngine = class {
   }
   lastResults = null;
   lastSeenTime = 0;
+  wasPinchingHands = [false, false];
   smoothedHands = [];
-  lerpAmount = 0.6;
-  // Increased for better responsiveness
+  lerpAmount = 0.5;
   loop() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     try {
@@ -4265,20 +4265,23 @@ var AetherEngine = class {
         this.lastResults = rawResults;
         this.lastSeenTime = now;
       }
-      if (now - this.lastSeenTime > 1500) this.lastResults = null;
+      if (now - this.lastSeenTime > 1500) {
+        this.lastResults = null;
+        this.smoothedHands = [];
+      }
       const activeResults = rawResults || this.lastResults;
       if (!activeResults || !activeResults.landmarks || activeResults.landmarks.length === 0) {
         this.vfx.drawSearchPulse(this.canvas.width, this.canvas.height);
-        this.smoothedHands = [];
-      }
-      if (activeResults && activeResults.landmarks) {
+      } else {
         activeResults.landmarks.forEach((landmarks, hIdx) => {
+          if (hIdx >= 2) return;
           if (!this.smoothedHands[hIdx]) {
-            this.smoothedHands[hIdx] = JSON.parse(JSON.stringify(landmarks));
+            this.smoothedHands[hIdx] = landmarks.map((p2) => ({ ...p2 }));
           } else {
             landmarks.forEach((pt2, i2) => {
-              this.smoothedHands[hIdx][i2].x += (pt2.x - this.smoothedHands[hIdx][i2].x) * this.lerpAmount;
-              this.smoothedHands[hIdx][i2].y += (pt2.y - this.smoothedHands[hIdx][i2].y) * this.lerpAmount;
+              const smoothed2 = this.smoothedHands[hIdx][i2];
+              smoothed2.x += (pt2.x - smoothed2.x) * this.lerpAmount;
+              smoothed2.y += (pt2.y - smoothed2.y) * this.lerpAmount;
             });
           }
           const smoothed = this.smoothedHands[hIdx];
@@ -4287,17 +4290,19 @@ var AetherEngine = class {
           const indexTip = smoothed[8];
           const vx = (1 - indexTip.x) * this.canvas.width;
           const vy = indexTip.y * this.canvas.height;
-          const hue = Math.floor(vx / this.canvas.width * 360);
-          this.vfx.setBaseColor(`rgb(${this.hslToRgb(hue, 1, 0.5)})`);
-          this.vfx.drawTrail(vx, vy, state.pinchStrength);
-          if (state.isPinching && !this.wasPinching) {
-            this.vfx.createBurst(vx, vy, 30);
-            this.emit("PINCH_START", { x: vx, y: vy });
-            if ("vibrate" in navigator) navigator.vibrate(20);
-          } else if (!state.isPinching && this.wasPinching) {
-            this.emit("PINCH_END", { x: vx, y: vy });
+          if (hIdx === 0) {
+            const hue = Math.floor(vx / this.canvas.width * 360);
+            this.vfx.setBaseColor(`rgb(${this.hslToRgb(hue, 1, 0.5)})`);
           }
-          this.wasPinching = state.isPinching;
+          this.vfx.drawTrail(vx, vy, state.pinchStrength);
+          if (state.isPinching && !this.wasPinchingHands[hIdx]) {
+            this.vfx.createBurst(vx, vy, 20);
+            this.emit("PINCH_START", { hand: hIdx, x: vx, y: vy });
+            if ("vibrate" in navigator) navigator.vibrate(10);
+          } else if (!state.isPinching && this.wasPinchingHands[hIdx]) {
+            this.emit("PINCH_END", { hand: hIdx });
+          }
+          this.wasPinchingHands[hIdx] = state.isPinching;
         });
         this.drawSkeleton(this.smoothedHands);
       }

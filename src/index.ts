@@ -51,11 +51,11 @@ export class AetherEngine {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
     }
-
     private lastResults: any = null;
     private lastSeenTime: number = 0;
+    private wasPinchingHands: boolean[] = [false, false];
     private smoothedHands: any[][] = [];
-    private lerpAmount: number = 0.6; // Increased for better responsiveness
+    private lerpAmount: number = 0.5;
 
     private loop() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -70,24 +70,27 @@ export class AetherEngine {
             }
 
             // Clear persistence if gone for > 1.5s (reduced from 2s for less ghosting)
-            if (now - this.lastSeenTime > 1500) this.lastResults = null;
+            if (now - this.lastSeenTime > 1500) {
+                this.lastResults = null;
+                this.smoothedHands = []; // Reset smoothing when hands are lost
+            }
 
             const activeResults = rawResults || this.lastResults;
 
             if (!activeResults || !activeResults.landmarks || activeResults.landmarks.length === 0) {
                 this.vfx.drawSearchPulse(this.canvas.width, this.canvas.height);
-                this.smoothedHands = []; // Reset smoothing when hands are lost
-            }
-
-            if (activeResults && activeResults.landmarks) {
+            } else {
                 activeResults.landmarks.forEach((landmarks: any, hIdx: number) => {
-                    // Initialize or update smoothed landmarks for THIS hand index
+                    if (hIdx >= 2) return; // Support max 2 hands
+
+                    // Efficient Smoothing
                     if (!this.smoothedHands[hIdx]) {
-                        this.smoothedHands[hIdx] = JSON.parse(JSON.stringify(landmarks));
+                        this.smoothedHands[hIdx] = landmarks.map((p: any) => ({...p}));
                     } else {
                         landmarks.forEach((pt: any, i: number) => {
-                            this.smoothedHands[hIdx][i].x += (pt.x - this.smoothedHands[hIdx][i].x) * this.lerpAmount;
-                            this.smoothedHands[hIdx][i].y += (pt.y - this.smoothedHands[hIdx][i].y) * this.lerpAmount;
+                            const smoothed = this.smoothedHands[hIdx][i];
+                            smoothed.x += (pt.x - smoothed.x) * this.lerpAmount;
+                            smoothed.y += (pt.y - smoothed.y) * this.lerpAmount;
                         });
                     }
                     
@@ -102,18 +105,22 @@ export class AetherEngine {
                     const vx = (1 - indexTip.x) * this.canvas.width; 
                     const vy = indexTip.y * this.canvas.height;
                     
-                    const hue = Math.floor((vx / this.canvas.width) * 360);
-                    this.vfx.setBaseColor(`rgb(${this.hslToRgb(hue, 1, 0.5)})`);
+                    // Throttled color update
+                    if (hIdx === 0) {
+                        const hue = Math.floor((vx / this.canvas.width) * 360);
+                        this.vfx.setBaseColor(`rgb(${this.hslToRgb(hue, 1, 0.5)})`);
+                    }
                     this.vfx.drawTrail(vx, vy, state.pinchStrength);
 
-                    if (state.isPinching && !this.wasPinching) {
-                        this.vfx.createBurst(vx, vy, 30);
-                        this.emit('PINCH_START', { x: vx, y: vy });
-                        if ("vibrate" in navigator) navigator.vibrate(20);
-                    } else if (!state.isPinching && this.wasPinching) {
-                        this.emit('PINCH_END', { x: vx, y: vy });
+                    // Per-hand pinch state
+                    if (state.isPinching && !this.wasPinchingHands[hIdx]) {
+                        this.vfx.createBurst(vx, vy, 20);
+                        this.emit('PINCH_START', { hand: hIdx, x: vx, y: vy });
+                        if ("vibrate" in navigator) navigator.vibrate(10);
+                    } else if (!state.isPinching && this.wasPinchingHands[hIdx]) {
+                        this.emit('PINCH_END', { hand: hIdx });
                     }
-                    this.wasPinching = state.isPinching;
+                    this.wasPinchingHands[hIdx] = state.isPinching;
                 });
 
                 this.drawSkeleton(this.smoothedHands);

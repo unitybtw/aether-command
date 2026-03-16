@@ -53,29 +53,53 @@ export class AetherEngine {
     }
 
     private lastResults: any = null;
+    private lastSeenTime: number = 0;
+
+    private lastSmoothLandmarks: any[] = [];
+    private lerpAmount: number = 0.4;
 
     private loop() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
         try {
-            const results = this.tracker.detect(this.camera.video, performance.now());
+            const rawResults = this.tracker.detect(this.camera.video, performance.now());
+            const now = performance.now();
             
-            // If current frame detection skipped/failed, use last valid results for rendering
-            const activeResults = results || this.lastResults;
+            if (rawResults && rawResults.landmarks && rawResults.landmarks.length > 0) {
+                this.lastResults = rawResults;
+                this.lastSeenTime = now;
+            }
 
-            if (results) this.lastResults = results;
+            if (now - this.lastSeenTime > 2000) this.lastResults = null;
+
+            const activeResults = rawResults || this.lastResults;
+
+            if (!activeResults || activeResults.landmarks.length === 0) {
+                this.vfx.drawSearchPulse(this.canvas.width, this.canvas.height);
+            }
 
             if (activeResults && activeResults.landmarks && activeResults.landmarks.length > 0) {
                 activeResults.landmarks.forEach((landmarks: any) => {
-                const state = this.gesture.process(landmarks);
-                
-                // VFX: Glass Overlay
-                this.vfx.drawGlassOverlay(landmarks, this.canvas.width, this.canvas.height);
+                    // Smoothing logic
+                    if (this.lastSmoothLandmarks.length === 0) {
+                        this.lastSmoothLandmarks = JSON.parse(JSON.stringify(landmarks));
+                    } else {
+                        landmarks.forEach((pt: any, i: number) => {
+                            this.lastSmoothLandmarks[i].x += (pt.x - this.lastSmoothLandmarks[i].x) * this.lerpAmount;
+                            this.lastSmoothLandmarks[i].y += (pt.y - this.lastSmoothLandmarks[i].y) * this.lerpAmount;
+                        });
+                    }
+                    
+                    const smoothed = this.lastSmoothLandmarks;
+                    const state = this.gesture.process(smoothed);
+                    
+                    // VFX: Glass Overlay
+                    this.vfx.drawGlassOverlay(smoothed, this.canvas.width, this.canvas.height);
 
-                // VFX: Trail on index finger
-                const indexTip = landmarks[8];
-                const vx = (1 - indexTip.x) * this.canvas.width; // Mirror logic applied here
-                const vy = indexTip.y * this.canvas.height;
+                    // VFX: Trail on index finger
+                    const indexTip = smoothed[8];
+                    const vx = (1 - indexTip.x) * this.canvas.width; 
+                    const vy = indexTip.y * this.canvas.height;
                 
                 // VFX: Update dynamic color based on position
                 const hue = Math.floor((vx / this.canvas.width) * 360);

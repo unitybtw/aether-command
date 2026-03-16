@@ -59,16 +59,32 @@ export class VFXManager {
         this.ctx.globalAlpha = 1.0;
     }
 
+    public drawSearchPulse(width: number, height: number) {
+        const time = performance.now() * 0.002;
+        const radius = 20 + Math.sin(time) * 10;
+        this.ctx.beginPath();
+        this.ctx.arc(width / 2, height / 2, radius, 0, Math.PI * 2);
+        this.ctx.strokeStyle = "rgba(0, 229, 255, 0.2)";
+        this.ctx.setLineDash([5, 5]);
+        this.ctx.lineWidth = 1;
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+    }
+
     public drawGlassOverlay(landmarks: any[], width: number, height: number) {
         this.ctx.save();
         this.ctx.beginPath();
         
         // Define points for a "hand-shaped" polygon (simplified)
         // Landmarks: 0 (wrist), 5 (index base), 17 (pinky base)
-        const pts = [0, 5, 9, 13, 17].map(i => ({
-            x: (1 - landmarks[i].x) * width,
-            y: landmarks[i].y * height
-        }));
+        const pts = [0, 5, 9, 13, 17].map(i => {
+            const p = landmarks[i];
+            if (!p) return { x: 0, y: 0 };
+            return {
+                x: (1 - p.x) * width,
+                y: p.y * height
+            };
+        });
 
         this.ctx.moveTo(pts[0].x, pts[0].y);
         pts.forEach(p => this.ctx.lineTo(p.x, p.y));

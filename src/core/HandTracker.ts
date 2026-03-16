@@ -28,7 +28,10 @@ export class HandTracker {
                 delegate: "GPU"
             },
             runningMode: "VIDEO",
-            numHands: 2
+            numHands: 2,
+            minHandDetectionConfidence: 0.5,
+            minHandPresenceConfidence: 0.5,
+            minTrackingConfidence: 0.5
         });
 
         this.isInitialized = true;
@@ -36,15 +39,23 @@ export class HandTracker {
     }
 
     private frameCount: number = 0;
+    private lastHandCount: number = 0;
 
     public detect(video: HTMLVideoElement, timestamp: number): HandResults | null {
         if (!this.handLandmarker || !this.isInitialized) return null;
 
-        // Optimization: Only run heavy inference every 2 frames to prevent browser lag
+        /** 
+         * ADAPTIVE OPTIMIZATION:
+         * 1. If no hands detected last frame, check EVERY frame to catch hands Entering.
+         * 2. If hands are present, skip every other frame to save CPU.
+         */
         this.frameCount++;
-        if (this.frameCount % 2 !== 0) return null;
+        if (this.lastHandCount > 0 && this.frameCount % 2 !== 0) {
+            return null; 
+        }
 
         const results = this.handLandmarker.detectForVideo(video, timestamp);
+        this.lastHandCount = results.landmarks ? results.landmarks.length : 0;
         
         return {
             landmarks: results.landmarks || [],

@@ -4064,17 +4064,24 @@ var HandTracker = class {
         delegate: "GPU"
       },
       runningMode: "VIDEO",
-      numHands: 2
+      numHands: 2,
+      minHandDetectionConfidence: 0.5,
+      minHandPresenceConfidence: 0.5,
+      minTrackingConfidence: 0.5
     });
     this.isInitialized = true;
     console.log("[Aether Tracker] Hand Landmarker initialized.");
   }
   frameCount = 0;
+  lastHandCount = 0;
   detect(video, timestamp) {
     if (!this.handLandmarker || !this.isInitialized) return null;
     this.frameCount++;
-    if (this.frameCount % 2 !== 0) return null;
+    if (this.lastHandCount > 0 && this.frameCount % 2 !== 0) {
+      return null;
+    }
     const results = this.handLandmarker.detectForVideo(video, timestamp);
+    this.lastHandCount = results.landmarks ? results.landmarks.length : 0;
     return {
       landmarks: results.landmarks || [],
       worldLandmarks: results.worldLandmarks || [],
@@ -4173,13 +4180,28 @@ var VFXManager = class {
     this.ctx.stroke();
     this.ctx.globalAlpha = 1;
   }
+  drawSearchPulse(width, height) {
+    const time = performance.now() * 2e-3;
+    const radius = 20 + Math.sin(time) * 10;
+    this.ctx.beginPath();
+    this.ctx.arc(width / 2, height / 2, radius, 0, Math.PI * 2);
+    this.ctx.strokeStyle = "rgba(0, 229, 255, 0.2)";
+    this.ctx.setLineDash([5, 5]);
+    this.ctx.lineWidth = 1;
+    this.ctx.stroke();
+    this.ctx.setLineDash([]);
+  }
   drawGlassOverlay(landmarks, width, height) {
     this.ctx.save();
     this.ctx.beginPath();
-    const pts = [0, 5, 9, 13, 17].map((i2) => ({
-      x: (1 - landmarks[i2].x) * width,
-      y: landmarks[i2].y * height
-    }));
+    const pts = [0, 5, 9, 13, 17].map((i2) => {
+      const p2 = landmarks[i2];
+      if (!p2) return { x: 0, y: 0 };
+      return {
+        x: (1 - p2.x) * width,
+        y: p2.y * height
+      };
+    });
     this.ctx.moveTo(pts[0].x, pts[0].y);
     pts.forEach((p2) => this.ctx.lineTo(p2.x, p2.y));
     this.ctx.closePath();
@@ -4230,17 +4252,37 @@ var AetherEngine = class {
     this.canvas.height = window.innerHeight;
   }
   lastResults = null;
+  lastSeenTime = 0;
+  lastSmoothLandmarks = [];
+  lerpAmount = 0.4;
   loop() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     try {
-      const results = this.tracker.detect(this.camera.video, performance.now());
-      const activeResults = results || this.lastResults;
-      if (results) this.lastResults = results;
+      const rawResults = this.tracker.detect(this.camera.video, performance.now());
+      const now = performance.now();
+      if (rawResults && rawResults.landmarks && rawResults.landmarks.length > 0) {
+        this.lastResults = rawResults;
+        this.lastSeenTime = now;
+      }
+      if (now - this.lastSeenTime > 2e3) this.lastResults = null;
+      const activeResults = rawResults || this.lastResults;
+      if (!activeResults || activeResults.landmarks.length === 0) {
+        this.vfx.drawSearchPulse(this.canvas.width, this.canvas.height);
+      }
       if (activeResults && activeResults.landmarks && activeResults.landmarks.length > 0) {
         activeResults.landmarks.forEach((landmarks) => {
-          const state = this.gesture.process(landmarks);
-          this.vfx.drawGlassOverlay(landmarks, this.canvas.width, this.canvas.height);
-          const indexTip = landmarks[8];
+          if (this.lastSmoothLandmarks.length === 0) {
+            this.lastSmoothLandmarks = JSON.parse(JSON.stringify(landmarks));
+          } else {
+            landmarks.forEach((pt2, i2) => {
+              this.lastSmoothLandmarks[i2].x += (pt2.x - this.lastSmoothLandmarks[i2].x) * this.lerpAmount;
+              this.lastSmoothLandmarks[i2].y += (pt2.y - this.lastSmoothLandmarks[i2].y) * this.lerpAmount;
+            });
+          }
+          const smoothed = this.lastSmoothLandmarks;
+          const state = this.gesture.process(smoothed);
+          this.vfx.drawGlassOverlay(smoothed, this.canvas.width, this.canvas.height);
+          const indexTip = smoothed[8];
           const vx = (1 - indexTip.x) * this.canvas.width;
           const vy = indexTip.y * this.canvas.height;
           const hue = Math.floor(vx / this.canvas.width * 360);

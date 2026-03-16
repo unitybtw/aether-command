@@ -68,8 +68,9 @@ const createWindow = () => {
     frame: false,
     transparent: true,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
     }
   });
 
@@ -87,8 +88,9 @@ const createHudWindow = () => {
       hasShadow: false,
       show: false,
       webPreferences: {
-          nodeIntegration: true,
-          contextIsolation: false
+          nodeIntegration: false,
+          contextIsolation: true,
+          preload: path.join(__dirname, 'preload.js')
       }
   });
 

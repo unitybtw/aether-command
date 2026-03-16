@@ -1,39 +1,37 @@
-# 🧤 Aether-Hands
+# 🌌 Aether Ecosystem
 
-> A premium, high-performance gestural interaction engine for the web.
+Welcome to the **Aether** project collection. This repository houses the next generation of gestural control tools, bringing touchless interaction to both the web and the desktop.
 
-**[Live Demo 🚀](https://unitybtw.github.io/aether-hands/)**
+## 📂 Project Structure
 
-**Aether-Hands** uses Computer Vision (MediaPipe) to track hand movements and transform them into immersive visual effects and game actions. It's designed for developers who want to add "spell-casting" mechanics or futuristic tactile interfaces to their web projects.
+### 🖥️ [Aether-Command (Native Mac App)](./aether-command)
+A premium, production-ready macOS application that allows you to control your Mac using hand gestures. 
+- **Features**: Glassmorphic Dashboard, Custom Mappings, Sensitivity Controls, Auto-Launch.
+- **Tech Stack**: Electron, TypeScript, MediaPipe, AppleScript.
 
-## ✨ Features
-- **Real-time Tracking:** 21-point hand skeleton detection with sub-30ms latency.
-- **Gesture Engine:** Semantic recognition for Pinches, Swipes, and hand states.
-- **Reactive VFX:** 
-  - **Neon Trails:** Light trails that follow your fingertips.
-  - **Particle Bursts:** Explosion effects triggered by physical pinches.
-  - **Glassmorphic Overlay:** A soft, glowing "digital aura" around your tracked hands.
-- **Zero-Config Webcam:** Automatic stream management and mirroring.
+### 🧤 [Aether-Hands (Core Web Engine)](./aether-hands)
+The high-performance gestural recognition engine that powers the world of Aether.
+- **Features**: Ultra-fast hand tracking, WebGL-optimized VFX, raw gesture classification.
+- **Tech Stack**: TypeScript, MediaPipe, WebGL.
 
-## 🚀 Quick Start
+---
 
-```javascript
-import { AetherEngine } from './aether-hands/src/index.js';
+## 🚀 Getting Started
 
-// The engine automatically attaches a VFX canvas to the body
-const engine = new AetherEngine();
+Choose a project and follow its specific setup instructions:
 
-// Hook into gestures
-engine.on('PINCH_START', (pos) => {
-    console.log("Cast spell at:", pos);
-});
+```bash
+# To run the Mac App
+cd aether-command
+npm install
+npm start
+
+# To run the Web Engine
+cd aether-hands
+npm install
+npm run dev
 ```
 
-## 🛠️ Tech Stack
-- **Vision:** MediaPipe Hand Landmarker
-- **Rendering:** HTML5 Canvas (2D Optimized)
-- **Language:** TypeScript 5.x
-- **Build:** ESBuild (ESM Output)
+---
 
-## 📄 License
-MIT
+*Built with ❤️ by unitbtw & Antigravity*

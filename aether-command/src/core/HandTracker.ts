@@ -17,25 +17,34 @@ export class HandTracker {
 
     public async initialize() {
         if (this.isInitialized) return;
+        console.log("[HandTracker] Starting initialization...");
 
-        const vision = await FilesetResolver.forVisionTasks(
-            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
-        );
+        try {
+            console.log("[HandTracker] Resolving fileset from CDN...");
+            const vision = await FilesetResolver.forVisionTasks(
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+            );
+            console.log("[HandTracker] Fileset resolved.");
 
-        this.handLandmarker = await HandLandmarker.createFromOptions(vision, {
-            baseOptions: {
-                modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
-                delegate: "GPU"
-            },
-            runningMode: "VIDEO",
-            numHands: 1, // Limit to 1 hand for maximum stability as a test
-            minHandDetectionConfidence: 0.8,
-            minHandPresenceConfidence: 0.8,
-            minTrackingConfidence: 0.8
-        });
+            console.log("[HandTracker] Creating HandLandmarker...");
+            this.handLandmarker = await HandLandmarker.createFromOptions(vision, {
+                baseOptions: {
+                    modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
+                    delegate: "GPU"
+                },
+                runningMode: "VIDEO",
+                numHands: 1, 
+                minHandDetectionConfidence: 0.8,
+                minHandPresenceConfidence: 0.8,
+                minTrackingConfidence: 0.8
+            });
+            console.log("[HandTracker] HandLandmarker created successfully.");
 
-        this.isInitialized = true;
-        console.log("[Aether Tracker] Hand Landmarker initialized.");
+            this.isInitialized = true;
+        } catch (error) {
+            console.error("[HandTracker] Initialization error:", error);
+            throw error;
+        }
     }
 
     private frameCount: number = 0;

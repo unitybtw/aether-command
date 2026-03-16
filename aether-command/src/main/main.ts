@@ -14,9 +14,28 @@ const checkPermissions = async () => {
   if (process.platform !== 'darwin') return;
   
   const cameraStatus = systemPreferences.getMediaAccessStatus('camera');
+  console.log(`[Main] Current Camera Status: ${cameraStatus}`);
+  
   if (cameraStatus !== 'granted') {
-    await systemPreferences.askForMediaAccess('camera');
+    console.log('[Main] Requesting Camera Access...');
+    const granted = await systemPreferences.askForMediaAccess('camera');
+    console.log(`[Main] Camera Access Result: ${granted}`);
   }
+
+  // Explicitly handle renderer permission requests
+  const { session } = require('electron');
+  session.defaultSession.setPermissionRequestHandler((_webContents: any, permission: string, callback: (granted: boolean) => void) => {
+    if (permission === 'media') {
+      callback(true);
+    } else {
+      callback(false);
+    }
+  });
+
+  session.defaultSession.setPermissionCheckHandler((_webContents: any, permission: string) => {
+    if (permission === 'media') return true;
+    return false;
+  });
 };
 
 const createTray = () => {
@@ -90,6 +109,10 @@ app.whenReady().then(async () => {
 });
 
 // IPC Handlers
+ipcMain.on('renderer-log', (event, level, msg) => {
+    console.log(`[Renderer ${level.toUpperCase()}] ${msg}`);
+});
+
 ipcMain.on('gesture-action', (event, action) => {
     // 1. Trigger HUD
     if (hudWindow) {

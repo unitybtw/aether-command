@@ -13,6 +13,40 @@ declare global {
   }
 }
 
+const { ipcRenderer } = require('electron');
+
+// Initialize the API bridge if it hasn't been set up via preload
+if (!window.electronAPI) {
+    window.electronAPI = {
+        triggerGestureAction: (action: string) => ipcRenderer.send('gesture-action', action),
+        setLoginItem: (openAtLogin: boolean) => ipcRenderer.send('set-login-item', openAtLogin),
+        getLoginItem: () => ipcRenderer.invoke('get-login-item'),
+        getSettings: () => ipcRenderer.invoke('get-settings'),
+        saveSettings: (settings: any) => ipcRenderer.send('save-settings', settings)
+    };
+}
+
+// Bridge all console logs to the main process for easier debugging
+const originalLog = console.log;
+console.log = (...args: any[]) => {
+    const msg = args.map(a => {
+        if (a instanceof Error) return `${a.name}: ${a.message}\n${a.stack}`;
+        return typeof a === 'object' ? JSON.stringify(a) : a;
+    }).join(' ');
+    ipcRenderer.send('renderer-log', 'info', msg);
+    originalLog.apply(console, args);
+};
+
+const originalError = console.error;
+console.error = (...args: any[]) => {
+    const msg = args.map(a => {
+        if (a instanceof Error) return `${a.name}: ${a.message}\n${a.stack}`;
+        return typeof a === 'object' ? JSON.stringify(a) : a;
+    }).join(' ');
+    ipcRenderer.send('renderer-log', 'error', msg);
+    originalError.apply(console, args);
+};
+
 class AetherCommandRenderer {
     private video: HTMLVideoElement;
     private tracker: HandTracker;
@@ -22,6 +56,7 @@ class AetherCommandRenderer {
 
     private isRunning: boolean = false;
     private lerpAmount: number = 0.5;
+    private frameCount = 0;
     
     // State to handle debouncing and duplicate triggers
     private lastActionTimes: Map<string, number> = new Map();
@@ -103,29 +138,63 @@ class AetherCommandRenderer {
     }
 
     private async initCamera() {
+        this.log('Camera: Enumerating devices...');
+        
+        // Global error capture for the renderer
+        window.onerror = (message, source, lineno, colno, error) => {
+            this.log(`JS Error: ${message}`);
+            console.error('Renderer Error:', { message, source, lineno, colno, error });
+        };
+
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { width: 640, height: 480, facingMode: "user" } 
-            });
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const cameras = devices.filter(d => d.kind === 'videoinput');
+            this.log(`Camera: Found ${cameras.length} device(s).`);
+            cameras.forEach(c => this.log(`- ${c.label || 'Unnamed Device'}`));
+
+            this.log('Camera: Requesting access (HD)...');
+            let stream: MediaStream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480, facingMode: "user" } 
+                });
+            } catch (e) {
+                this.log('Camera: Preferred constraints failed. Falling back...');
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            }
+            this.log('Camera: Stream obtained.');
             this.video.srcObject = stream;
             
             this.video.onloadeddata = async () => {
+                this.log('Camera: Video data loaded.');
                 this.statusEl.innerText = "Initializing Machine Learning...";
-                await this.tracker.initialize();
-                this.statusEl.innerText = "Tracking Active";
-                this.isRunning = true;
-                this.loop();
+                try {
+                    await this.tracker.initialize();
+                    this.log('Tracker: Machine Learning ready.');
+                    this.statusEl.innerText = "Tracking Active";
+                    this.isRunning = true;
+                    this.loop();
+                } catch (trackerError) {
+                    this.log('Tracker Error: initialization failed.');
+                    console.error('Tracker Error:', trackerError);
+                }
             };
-        } catch (error) {
-            this.statusEl.innerText = "Camera Denied";
+
+            this.video.onerror = (e) => {
+                this.log('Camera Error: Video element error.');
+                console.error('Video Error:', e);
+            };
+        } catch (error: any) {
+            this.log(`Camera Error: ${error.name} - ${error.message}`);
+            this.statusEl.innerText = "Camera Denied/Error";
             this.statusEl.style.color = "#ff4b2b";
-            this.log('Error: Camera permissions not granted.');
+            console.error('Camera Access Error:', error);
         }
     }
 
     private async loop() {
         if (!this.isRunning) return;
-
+        
         try {
             const result = this.tracker.detect(this.video, performance.now());
             if (result && result.landmarks && result.landmarks.length > 0) {
@@ -173,6 +242,7 @@ class AetherCommandRenderer {
     }
 
     private log(msg: string) {
+        // UI log
         const entry = document.createElement('div');
         entry.style.fontSize = '0.75rem';
         entry.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
@@ -180,11 +250,19 @@ class AetherCommandRenderer {
         entry.style.color = '#8892b0';
         entry.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
         
-        this.logEl.prepend(entry);
-        
-        // Keep only last 15 logs
-        while (this.logEl.children.length > 15) {
-            this.logEl.removeChild(this.logEl.lastChild!);
+        if (this.logEl) {
+            this.logEl.prepend(entry);
+            while (this.logEl.children.length > 20) {
+                this.logEl.removeChild(this.logEl.lastChild!);
+            }
+        }
+
+        // Main Process terminal bridge
+        try {
+            const { ipcRenderer } = require('electron');
+            ipcRenderer.send('renderer-log', 'info', msg);
+        } catch (e) {
+            console.log('[Fallback Log]', msg);
         }
     }
 }

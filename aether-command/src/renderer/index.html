@@ -133,7 +133,7 @@
     <div class="panel">
         <h2>Aether Engine</h2>
         <div class="feed-container">
-            <video id="webcam" autoplay playsinline></video>
+            <video id="webcam" autoplay playsinline muted></video>
             <div id="status-overlay">Initializing Tracker...</div>
         </div>
         <div class="log-area" id="log">
@@ -218,6 +218,6 @@
 
     </div>
 
-    <script require="../../dist/renderer/renderer.js"></script>
+    <script>require('../../dist/renderer/renderer.js')</script>
 </body>
 </html>

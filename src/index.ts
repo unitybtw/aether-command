@@ -83,6 +83,11 @@ export class AetherEngine {
                 if (state.isPinching && !this.wasPinching) {
                     this.vfx.createBurst(vx, vy, 30);
                     this.emit('PINCH_START', { x: vx, y: vy });
+                    
+                    // Haptic feedback
+                    if ("vibrate" in navigator) {
+                        navigator.vibrate(20);
+                    }
                 } else if (!state.isPinching && this.wasPinching) {
                     this.emit('PINCH_END', { x: vx, y: vy });
                 }

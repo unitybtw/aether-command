@@ -8,7 +8,7 @@ import { HandTracker } from './core/HandTracker.js';
 import { GestureEngine } from './core/GestureEngine.js';
 import { VFXManager } from './vfx/VFXManager.js';
 
-class AetherEngine {
+export class AetherEngine {
     private camera: CameraProvider;
     private tracker: HandTracker;
     private gesture: GestureEngine;
@@ -122,7 +122,3 @@ class AetherEngine {
     }
 }
 
-// Initialize when DOM is ready
-window.addEventListener('DOMContentLoaded', () => {
-    (window as any).aether = new AetherEngine();
-});

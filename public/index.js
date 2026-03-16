@@ -4265,6 +4265,6 @@ var AetherEngine = class {
     this.ctx.restore();
   }
 };
-window.addEventListener("DOMContentLoaded", () => {
-  window.aether = new AetherEngine();
-});
+export {
+  AetherEngine
+};

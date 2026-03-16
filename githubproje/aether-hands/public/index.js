@@ -4064,14 +4064,25 @@ var HandTracker = class {
         delegate: "GPU"
       },
       runningMode: "VIDEO",
-      numHands: 2
+      numHands: 1,
+      // Limit to 1 hand for maximum stability as a test
+      minHandDetectionConfidence: 0.8,
+      minHandPresenceConfidence: 0.8,
+      minTrackingConfidence: 0.8
     });
     this.isInitialized = true;
     console.log("[Aether Tracker] Hand Landmarker initialized.");
   }
+  frameCount = 0;
+  lastHandCount = 0;
   detect(video, timestamp) {
     if (!this.handLandmarker || !this.isInitialized) return null;
+    this.frameCount++;
+    if (this.lastHandCount > 0 && this.frameCount % 3 !== 0) {
+      return null;
+    }
     const results = this.handLandmarker.detectForVideo(video, timestamp);
+    this.lastHandCount = results.landmarks ? results.landmarks.length : 0;
     return {
       landmarks: results.landmarks || [],
       worldLandmarks: results.worldLandmarks || [],
@@ -4119,26 +4130,43 @@ var GestureEngine = class {
 var VFXManager = class {
   ctx;
   particles = [];
+  MAX_PARTICLES = 50;
+  baseColor = "#00e5ff";
   constructor(ctx) {
     this.ctx = ctx;
   }
+  setBaseColor(color) {
+    this.baseColor = color;
+  }
   update() {
-    this.particles = this.particles.filter((p2) => p2.life > 0);
-    this.particles.forEach((p2) => {
+    for (let i2 = this.particles.length - 1; i2 >= 0; i2--) {
+      const p2 = this.particles[i2];
       p2.x += p2.vx;
       p2.y += p2.vy;
       p2.life -= 0.02;
-    });
+      if (p2.life <= 0) {
+        this.particles.splice(i2, 1);
+      }
+    }
+    if (this.particles.length > this.MAX_PARTICLES) {
+      this.particles.length = this.MAX_PARTICLES;
+    }
   }
   draw() {
+    this.ctx.save();
+    this.ctx.globalCompositeOperation = "lighter";
     this.particles.forEach((p2) => {
+      if (p2.life <= 0) return;
       this.ctx.beginPath();
-      this.ctx.arc(p2.x, p2.y, p2.size * p2.life, 0, Math.PI * 2);
-      this.ctx.fillStyle = `rgba(0, 229, 255, ${p2.life})`;
-      this.ctx.shadowBlur = 15;
-      this.ctx.shadowColor = "#00e5ff";
+      this.ctx.arc(p2.x, p2.y, Math.max(0, p2.size * p2.life), 0, Math.PI * 2);
+      const alpha = Math.max(0, p2.life).toFixed(2);
+      this.ctx.fillStyle = (p2.color || this.baseColor).replace(")", `, ${alpha})`).replace("rgb", "rgba");
+      if (this.baseColor.startsWith("#")) {
+        this.ctx.fillStyle = `rgba(0, 229, 255, ${alpha})`;
+      }
       this.ctx.fill();
     });
+    this.ctx.restore();
   }
   createBurst(x2, y2, count = 20) {
     for (let i2 = 0; i2 < count; i2++) {
@@ -4148,33 +4176,51 @@ var VFXManager = class {
         vx: (Math.random() - 0.5) * 10,
         vy: (Math.random() - 0.5) * 10,
         size: Math.random() * 5 + 2,
-        life: 1
+        life: 1,
+        color: this.baseColor
       });
     }
   }
   drawTrail(x2, y2, strength) {
     this.ctx.beginPath();
     this.ctx.arc(x2, y2, 10 + strength * 20, 0, Math.PI * 2);
-    this.ctx.strokeStyle = `rgba(0, 229, 255, ${0.2 + strength * 0.5})`;
+    this.ctx.strokeStyle = this.baseColor;
+    this.ctx.globalAlpha = 0.2 + strength * 0.5;
     this.ctx.lineWidth = 2;
     this.ctx.stroke();
+    this.ctx.globalAlpha = 1;
+  }
+  drawSearchPulse(width, height) {
+    const time = performance.now() * 2e-3;
+    const radius = 20 + Math.sin(time) * 10;
+    this.ctx.beginPath();
+    this.ctx.arc(width / 2, height / 2, radius, 0, Math.PI * 2);
+    this.ctx.strokeStyle = "rgba(0, 229, 255, 0.2)";
+    this.ctx.setLineDash([5, 5]);
+    this.ctx.lineWidth = 1;
+    this.ctx.stroke();
+    this.ctx.setLineDash([]);
   }
   drawGlassOverlay(landmarks, width, height) {
     this.ctx.save();
     this.ctx.beginPath();
-    const pts = [0, 5, 9, 13, 17].map((i2) => ({
-      x: (1 - landmarks[i2].x) * width,
-      y: landmarks[i2].y * height
-    }));
-    this.ctx.moveTo(pts[0].x, pts[0].y);
-    pts.forEach((p2) => this.ctx.lineTo(p2.x, p2.y));
+    const pts = [0, 5, 9, 13, 17].map((i2) => {
+      const p2 = landmarks[i2];
+      if (!p2) return { x: 0, y: 0 };
+      return {
+        x: (1 - p2.x) * width,
+        y: p2.y * height
+      };
+    });
+    if (pts.length > 0 && pts[0]) {
+      this.ctx.moveTo(pts[0].x, pts[0].y);
+      pts.forEach((p2) => this.ctx.lineTo(p2.x, p2.y));
+    }
     this.ctx.closePath();
-    this.ctx.shadowBlur = 30;
-    this.ctx.shadowColor = "rgba(0, 229, 255, 0.4)";
-    this.ctx.fillStyle = "rgba(0, 229, 255, 0.05)";
+    this.ctx.fillStyle = "rgba(0, 229, 255, 0.15)";
     this.ctx.fill();
-    this.ctx.strokeStyle = "rgba(0, 229, 255, 0.2)";
-    this.ctx.lineWidth = 1;
+    this.ctx.strokeStyle = "rgba(0, 229, 255, 0.4)";
+    this.ctx.lineWidth = 2;
     this.ctx.stroke();
     this.ctx.restore();
   }
@@ -4189,6 +4235,7 @@ var AetherEngine = class {
   canvas;
   ctx;
   wasPinching = false;
+  listeners = /* @__PURE__ */ new Map();
   constructor() {
     this.camera = new CameraProvider();
     this.tracker = new HandTracker();
@@ -4214,57 +4261,136 @@ var AetherEngine = class {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
   }
+  lastResults = null;
+  lastSeenTime = 0;
+  wasPinchingHands = [false, false];
+  smoothedHands = [];
+  lerpAmount = 0.5;
+  isProcessing = false;
   loop() {
+    if (this.isProcessing) return;
+    this.isProcessing = true;
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    const results = this.tracker.detect(this.camera.video, performance.now());
-    if (results && results.landmarks && results.landmarks.length > 0) {
-      results.landmarks.forEach((landmarks) => {
-        const state = this.gesture.process(landmarks);
-        this.vfx.drawGlassOverlay(landmarks, this.canvas.width, this.canvas.height);
-        const indexTip = landmarks[8];
-        const vx = (1 - indexTip.x) * this.canvas.width;
-        const vy = indexTip.y * this.canvas.height;
-        this.vfx.drawTrail(vx, vy, state.pinchStrength);
-        if (state.isPinching && !this.wasPinching) {
-          this.vfx.createBurst(vx, vy, 30);
-        }
-        this.wasPinching = state.isPinching;
-      });
-      this.drawSkeleton(results.landmarks);
+    try {
+      const rawResults = this.tracker.detect(this.camera.video, performance.now());
+      const now = performance.now();
+      if (rawResults && rawResults.landmarks && rawResults.landmarks.length > 0) {
+        this.lastResults = rawResults;
+        this.lastSeenTime = now;
+      }
+      if (now - this.lastSeenTime > 1e3) {
+        this.lastResults = null;
+        this.smoothedHands = [];
+      }
+      const activeResults = rawResults || this.lastResults;
+      if (!activeResults || !activeResults.landmarks || activeResults.landmarks.length === 0) {
+        this.vfx.drawSearchPulse(this.canvas.width, this.canvas.height);
+      } else {
+        activeResults.landmarks.slice(0, 1).forEach((landmarks, hIdx) => {
+          if (!this.smoothedHands[hIdx]) {
+            this.smoothedHands[hIdx] = landmarks.map((p2) => ({ ...p2 }));
+          } else {
+            landmarks.forEach((pt2, i2) => {
+              const smoothed2 = this.smoothedHands[hIdx][i2];
+              if (smoothed2 && pt2) {
+                smoothed2.x += (pt2.x - smoothed2.x) * this.lerpAmount;
+                smoothed2.y += (pt2.y - smoothed2.y) * this.lerpAmount;
+              }
+            });
+          }
+          const smoothed = this.smoothedHands[hIdx];
+          if (!smoothed) return;
+          const state = this.gesture.process(smoothed);
+          this.vfx.drawGlassOverlay(smoothed, this.canvas.width, this.canvas.height);
+          const indexTip = smoothed[8];
+          const vx = (1 - indexTip.x) * this.canvas.width;
+          const vy = indexTip.y * this.canvas.height;
+          this.vfx.drawTrail(vx, vy, state.pinchStrength);
+          if (state.isPinching && !this.wasPinchingHands[hIdx]) {
+            this.vfx.createBurst(vx, vy, 10);
+            this.emit("PINCH_START", { x: vx, y: vy });
+          }
+          this.wasPinchingHands[hIdx] = state.isPinching;
+        });
+        this.drawSkeleton(this.smoothedHands);
+      }
+    } catch (error) {
+      console.error("[Aether Loop Error]", error);
+    } finally {
+      this.vfx.update();
+      this.vfx.draw();
+      this.isProcessing = false;
+      requestAnimationFrame(() => this.loop());
     }
-    this.vfx.update();
-    this.vfx.draw();
-    requestAnimationFrame(() => this.loop());
+  }
+  emit(event, data) {
+    this.listeners.get(event)?.forEach((cb) => cb(data));
+  }
+  hslToRgb(h2, s2, l2) {
+    h2 /= 360;
+    let r2, g2, b2;
+    if (s2 === 0) {
+      r2 = g2 = b2 = l2;
+    } else {
+      const hue2rgb = (p3, q3, t2) => {
+        if (t2 < 0) t2 += 1;
+        if (t2 > 1) t2 -= 1;
+        if (t2 < 1 / 6) return p3 + (q3 - p3) * 6 * t2;
+        if (t2 < 1 / 2) return q3;
+        if (t2 < 2 / 3) return p3 + (q3 - p3) * (2 / 3 - t2) * 6;
+        return p3;
+      };
+      const q2 = l2 < 0.5 ? l2 * (1 + s2) : l2 + s2 - l2 * s2;
+      const p2 = 2 * l2 - q2;
+      r2 = hue2rgb(p2, q2, h2 + 1 / 3);
+      g2 = hue2rgb(p2, q2, h2);
+      b2 = hue2rgb(p2, q2, h2 - 1 / 3);
+    }
+    return `${Math.round(r2 * 255)}, ${Math.round(g2 * 255)}, ${Math.round(b2 * 255)}`;
   }
   drawSkeleton(hands) {
     this.ctx.save();
-    this.ctx.translate(this.canvas.width, 0);
-    this.ctx.scale(-1, 1);
+    const connections = [
+      [0, 1, 2, 3, 4],
+      // Thumb
+      [0, 5, 6, 7, 8],
+      // Index
+      [9, 10, 11, 12],
+      // Middle
+      [13, 14, 15, 16],
+      // Ring
+      [0, 17, 18, 19, 20],
+      // Pinky
+      [5, 9, 13, 17]
+      // Palm base
+    ];
     hands.forEach((landmarks) => {
-      this.ctx.fillStyle = "#00e5ff";
-      this.ctx.shadowBlur = 10;
-      this.ctx.shadowColor = "#00e5ff";
-      landmarks.forEach((pt2) => {
-        const x2 = pt2.x * this.canvas.width;
+      landmarks.forEach((pt2, i2) => {
+        const x2 = (1 - pt2.x) * this.canvas.width;
         const y2 = pt2.y * this.canvas.height;
+        this.ctx.fillStyle = i2 % 4 === 0 ? "#fff" : "#00e5ff";
         this.ctx.beginPath();
-        this.ctx.arc(x2, y2, 4, 0, Math.PI * 2);
+        this.ctx.arc(x2, y2, 3, 0, Math.PI * 2);
         this.ctx.fill();
       });
-      this.ctx.strokeStyle = "rgba(0, 229, 255, 0.5)";
-      this.ctx.lineWidth = 2;
-      this.ctx.beginPath();
-      landmarks.forEach((pt2, i2) => {
-        const x2 = pt2.x * this.canvas.width;
-        const y2 = pt2.y * this.canvas.height;
-        if (i2 === 0) this.ctx.moveTo(x2, y2);
-        else this.ctx.lineTo(x2, y2);
+      this.ctx.strokeStyle = "rgba(0, 229, 255, 0.3)";
+      this.ctx.lineWidth = 1.5;
+      connections.forEach((path) => {
+        this.ctx.beginPath();
+        path.forEach((idx, i2) => {
+          const pt2 = landmarks[idx];
+          if (!pt2) return;
+          const x2 = (1 - pt2.x) * this.canvas.width;
+          const y2 = pt2.y * this.canvas.height;
+          if (i2 === 0) this.ctx.moveTo(x2, y2);
+          else this.ctx.lineTo(x2, y2);
+        });
+        this.ctx.stroke();
       });
-      this.ctx.stroke();
     });
     this.ctx.restore();
   }
 };
-window.addEventListener("DOMContentLoaded", () => {
-  window.aether = new AetherEngine();
-});
+export {
+  AetherEngine
+};

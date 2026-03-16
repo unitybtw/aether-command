@@ -51,13 +51,21 @@ export class AetherEngine {
         this.canvas.height = window.innerHeight;
     }
 
+    private lastResults: any = null;
+
     private loop() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        const results = this.tracker.detect(this.camera.video, performance.now());
-        
-        if (results && results.landmarks && results.landmarks.length > 0) {
-            results.landmarks.forEach(landmarks => {
+        try {
+            const results = this.tracker.detect(this.camera.video, performance.now());
+            
+            // If current frame detection skipped/failed, use last valid results for rendering
+            const activeResults = results || this.lastResults;
+
+            if (results) this.lastResults = results;
+
+            if (activeResults && activeResults.landmarks && activeResults.landmarks.length > 0) {
+                activeResults.landmarks.forEach((landmarks: any) => {
                 const state = this.gesture.process(landmarks);
                 
                 // VFX: Glass Overlay
@@ -78,6 +86,10 @@ export class AetherEngine {
             });
 
             this.drawSkeleton(results.landmarks);
+        }
+
+        } catch (error) {
+            console.error("[Aether Loop Error]", error);
         }
 
         this.vfx.update();

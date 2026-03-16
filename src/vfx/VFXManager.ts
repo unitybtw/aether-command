@@ -6,13 +6,15 @@
 export class VFXManager {
     private ctx: CanvasRenderingContext2D;
     private particles: any[] = [];
+    private MAX_PARTICLES = 150;
 
     constructor(ctx: CanvasRenderingContext2D) {
         this.ctx = ctx;
     }
 
     public update() {
-        this.particles = this.particles.filter(p => p.life > 0);
+        // Efficiency: Update in place and limit growth
+        this.particles = this.particles.filter(p => p.life > 0).slice(0, this.MAX_PARTICLES);
         this.particles.forEach(p => {
             p.x += p.vx;
             p.y += p.vy;

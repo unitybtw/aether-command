@@ -4069,8 +4069,11 @@ var HandTracker = class {
     this.isInitialized = true;
     console.log("[Aether Tracker] Hand Landmarker initialized.");
   }
+  frameCount = 0;
   detect(video, timestamp) {
     if (!this.handLandmarker || !this.isInitialized) return null;
+    this.frameCount++;
+    if (this.frameCount % 2 !== 0) return null;
     const results = this.handLandmarker.detectForVideo(video, timestamp);
     return {
       landmarks: results.landmarks || [],
@@ -4119,11 +4122,12 @@ var GestureEngine = class {
 var VFXManager = class {
   ctx;
   particles = [];
+  MAX_PARTICLES = 150;
   constructor(ctx) {
     this.ctx = ctx;
   }
   update() {
-    this.particles = this.particles.filter((p2) => p2.life > 0);
+    this.particles = this.particles.filter((p2) => p2.life > 0).slice(0, this.MAX_PARTICLES);
     this.particles.forEach((p2) => {
       p2.x += p2.vx;
       p2.y += p2.vy;
@@ -4214,23 +4218,30 @@ var AetherEngine = class {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
   }
+  lastResults = null;
   loop() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    const results = this.tracker.detect(this.camera.video, performance.now());
-    if (results && results.landmarks && results.landmarks.length > 0) {
-      results.landmarks.forEach((landmarks) => {
-        const state = this.gesture.process(landmarks);
-        this.vfx.drawGlassOverlay(landmarks, this.canvas.width, this.canvas.height);
-        const indexTip = landmarks[8];
-        const vx = (1 - indexTip.x) * this.canvas.width;
-        const vy = indexTip.y * this.canvas.height;
-        this.vfx.drawTrail(vx, vy, state.pinchStrength);
-        if (state.isPinching && !this.wasPinching) {
-          this.vfx.createBurst(vx, vy, 30);
-        }
-        this.wasPinching = state.isPinching;
-      });
-      this.drawSkeleton(results.landmarks);
+    try {
+      const results = this.tracker.detect(this.camera.video, performance.now());
+      const activeResults = results || this.lastResults;
+      if (results) this.lastResults = results;
+      if (activeResults && activeResults.landmarks && activeResults.landmarks.length > 0) {
+        activeResults.landmarks.forEach((landmarks) => {
+          const state = this.gesture.process(landmarks);
+          this.vfx.drawGlassOverlay(landmarks, this.canvas.width, this.canvas.height);
+          const indexTip = landmarks[8];
+          const vx = (1 - indexTip.x) * this.canvas.width;
+          const vy = indexTip.y * this.canvas.height;
+          this.vfx.drawTrail(vx, vy, state.pinchStrength);
+          if (state.isPinching && !this.wasPinching) {
+            this.vfx.createBurst(vx, vy, 30);
+          }
+          this.wasPinching = state.isPinching;
+        });
+        this.drawSkeleton(results.landmarks);
+      }
+    } catch (error) {
+      console.error("[Aether Loop Error]", error);
     }
     this.vfx.update();
     this.vfx.draw();

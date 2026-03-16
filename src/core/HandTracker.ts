@@ -35,8 +35,14 @@ export class HandTracker {
         console.log("[Aether Tracker] Hand Landmarker initialized.");
     }
 
+    private frameCount: number = 0;
+
     public detect(video: HTMLVideoElement, timestamp: number): HandResults | null {
         if (!this.handLandmarker || !this.isInitialized) return null;
+
+        // Optimization: Only run heavy inference every 2 frames to prevent browser lag
+        this.frameCount++;
+        if (this.frameCount % 2 !== 0) return null;
 
         const results = this.handLandmarker.detectForVideo(video, timestamp);
         

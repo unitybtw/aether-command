@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Aether Command</title>
+    <style>
+        :root {
+            --bg-color: #0f111a;
+            --accent-color: #00e5ff;
+            --panel-bg: rgba(255, 255, 255, 0.05);
+            --text-main: #ffffff;
+            --text-muted: #8892b0;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            color: var(--accent-color);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .feed-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+        #status-overlay {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.6);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            color: #00ff00;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #status-overlay::before {
+            content: "";
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #00ff00;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(0, 255, 0, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 0, 0); }
+        }
+        .log-area {
+            margin-top: 15px;
+            flex-grow: 1;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            overflow-y: auto;
+        }
+        /* Settings Styles */
+        .setting-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        select, input[type="range"] {
+            width: 100%;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 8px;
+            border-radius: 6px;
+            outline: none;
+        }
+        .gesture-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        .gesture-icon {
+            font-size: 1.2rem;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- Left Panel: Camera & Status -->
+    <div class="panel">
+        <h2>Aether Engine</h2>
+        <div class="feed-container">
+            <video id="webcam" autoplay playsinline></video>
+            <div id="status-overlay">Initializing Tracker...</div>
+        </div>
+        <div class="log-area" id="log">
+            Awaiting gestures...
+        </div>
+    </div>
+
+    <!-- Right Panel: Configurations -->
+    <div class="panel">
+        <h2>Command Mappings</h2>
+        
+        <div class="gesture-row">
+            <div><span class="gesture-icon">🤏</span> Pinch</div>
+            <select id="map-pinch">
+                <option value="PLAY_PAUSE" selected>Play / Pause Media</option>
+                <option value="MUTE_TOGGLE">Mute Volume</option>
+                <option value="MISSION_CONTROL">Mission Control</option>
+                <option value="BRIGHTNESS_UP">Brightness Up</option>
+                <option value="BRIGHTNESS_DOWN">Brightness Down</option>
+                <option value="LOCK_SCREEN">Lock Screen</option>
+                <option value="MIC_MUTE">Mic Mute Toggle</option>
+                <option value="LAUNCH_SAFARI">Open Safari</option>
+                <option value="LAUNCH_SPOTIFY">Open Spotify</option>
+                <option value="NONE">Disabled</option>
+            </select>
+        </div>
+
+        <div class="gesture-row">
+            <div><span class="gesture-icon">✊</span> Fist</div>
+            <select id="map-fist">
+                <option value="PLAY_PAUSE">Play / Pause Media</option>
+                <option value="MUTE_TOGGLE" selected>Mute Volume</option>
+                <option value="MISSION_CONTROL">Mission Control</option>
+                <option value="BRIGHTNESS_UP">Brightness Up</option>
+                <option value="BRIGHTNESS_DOWN">Brightness Down</option>
+                <option value="LOCK_SCREEN">Lock Screen</option>
+                <option value="MIC_MUTE">Mic Mute Toggle</option>
+                <option value="LAUNCH_SAFARI">Open Safari</option>
+                <option value="LAUNCH_SPOTIFY">Open Spotify</option>
+                <option value="NONE">Disabled</option>
+            </select>
+        </div>
+
+        <div class="gesture-row">
+            <div><span class="gesture-icon">✋</span> Open Palm</div>
+            <select id="map-palm">
+                <option value="PLAY_PAUSE">Play / Pause Media</option>
+                <option value="MUTE_TOGGLE">Mute Volume</option>
+                <option value="MISSION_CONTROL" selected>Mission Control</option>
+                <option value="BRIGHTNESS_UP">Brightness Up</option>
+                <option value="BRIGHTNESS_DOWN">Brightness Down</option>
+                <option value="LOCK_SCREEN">Lock Screen</option>
+                <option value="MIC_MUTE">Mic Mute Toggle</option>
+                <option value="LAUNCH_SAFARI">Open Safari</option>
+                <option value="LAUNCH_SPOTIFY">Open Spotify</option>
+                <option value="NONE">Disabled</option>
+            </select>
+        </div>
+
+        <div class="gesture-row">
+            <div><span class="gesture-icon">↔️</span> Swipes</div>
+            <select id="map-swipe">
+                <option value="SPACES" selected>Switch Desktop Spaces</option>
+                <option value="BRIGHTNESS_UP">Brightness Up</option>
+                <option value="BRIGHTNESS_DOWN">Brightness Down</option>
+                <option value="NONE">Disabled</option>
+            </select>
+        </div>
+
+        <h2 style="margin-top: 30px;">Engine Settings</h2>
+        
+        <div class="setting-group">
+            <label>Tracking Smoothing (Auto-apply)</label>
+            <input type="range" id="setting-smoothing" min="0.1" max="1.0" step="0.1" value="0.5">
+        </div>
+
+        <div class="setting-group">
+            <label>
+                <input type="checkbox" id="setting-autolaunch"> Launch at Login
+            </label>
+        </div>
+
+    </div>
+
+    <script require="../../dist/renderer/renderer.js"></script>
+</body>
+</html>

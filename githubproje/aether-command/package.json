@@ -1,0 +1,44 @@
+{
+  "name": "aether-command",
+  "version": "1.0.0",
+  "description": "Mac Menu Bar Gesture Controller",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "start": "tsc && electron .",
+    "build": "tsc",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.aether.command",
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": "dmg",
+      "icon": "src/assets/icon.png",
+      "extendInfo": {
+        "NSCameraUsageDescription": "Aether-Command needs camera access to track your hand gestures.",
+        "NSMicrophoneUsageDescription": "Aether-Command needs microphone access for complete media control compatibility.",
+        "NSAppleEventsUsageDescription": "Aether-Command needs to control other apps to perform actions like Play/Pause and Mute."
+      }
+    },
+    "files": [
+      "dist/**/*",
+      "src/renderer/index.html",
+      "src/assets/**/*"
+    ]
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.13.5",
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.27.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.32"
+  }
+}

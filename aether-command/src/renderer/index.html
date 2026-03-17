@@ -122,6 +122,7 @@
             background: #000;
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            flex-shrink: 0;
         }
         video {
             width: 100%;
@@ -163,6 +164,7 @@
             height: 60px;
             border: 1px solid rgba(255, 255, 255, 0.03);
             position: relative;
+            flex-shrink: 0;
         }
         .stability-label {
             position: absolute;
@@ -179,6 +181,7 @@
         .log-area {
             margin-top: 20px;
             flex-grow: 1;
+            min-height: 0;
             background: rgba(0,0,0,0.4);
             border-radius: 14px;
             padding: 15px;
@@ -202,6 +205,7 @@
             margin-top: 15px;
             overflow-x: auto;
             padding-bottom: 5px;
+            flex-shrink: 0;
         }
         .status-pill {
             padding: 6px 12px;
@@ -407,7 +411,7 @@
             <div class="status-pill" id="status-peace">PEACE</div>
             <div class="status-pill" id="status-swipe">SWIPE</div>
         </div>
-        <div style="display: flex; gap: 10px; align-items: center; margin-top: 15px;">
+        <div style="display: flex; gap: 10px; align-items: center; margin-top: 15px; flex-shrink: 0;">
             <input type="text" id="log-search" placeholder="Search logs..." style="flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 6px 12px; font-size: 10px; color: var(--text-muted); outline: none;">
             <button id="clear-log" style="background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); border-radius: 8px; padding: 4px 8px; font-size: 9px; cursor: pointer; transition: all 0.2s;">CLEAR</button>
         </div>

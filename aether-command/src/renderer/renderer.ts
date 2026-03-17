@@ -53,7 +53,9 @@ class AetherCommandRenderer {
     
     // State to handle debouncing and duplicate triggers
     private lastActionTimes: Map<string, number> = new Map();
-    private readonly DEBOUNCE_MS = 1000;
+    private lastGlobalActionTime: number = 0;
+    private readonly GLOBAL_DEBOUNCE_MS = 800; // Global cooldown between ANY gesture
+    private readonly DEBOUNCE_MS = 1500; // Cooldown for the SAME gesture
 
     constructor() {
         this.video = document.getElementById('webcam') as HTMLVideoElement;
@@ -340,10 +342,16 @@ class AetherCommandRenderer {
         const now = Date.now();
         const lastTime = this.lastActionTimes.get(action) || 0;
 
-        // Debounce to prevent multiple triggers for the same continuous gesture
+        // Apply global debounce (prevents multiple DIFFERENT shortcuts from firing together)
+        if (now - this.lastGlobalActionTime < this.GLOBAL_DEBOUNCE_MS) {
+            return;
+        }
+
+        // Debounce to prevent multiple triggers for the SAME continuous gesture
         if (now - lastTime > this.DEBOUNCE_MS) {
             window.electronAPI.triggerGestureAction(action);
             this.lastActionTimes.set(action, now);
+            this.lastGlobalActionTime = now;
             this.log(`Action: ${action}`);
         }
     }

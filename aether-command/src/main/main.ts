@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, systemPreferences, session } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, systemPreferences, session, globalShortcut } from 'electron';
 import { exec } from 'child_process';
 import * as path from 'path';
 import { SettingsManager } from './SettingsManager';
@@ -126,6 +126,7 @@ const createHudWindow = () => {
 
 app.on('before-quit', () => {
     isQuiting = true;
+    globalShortcut.unregisterAll();
 });
 
 app.whenReady().then(async () => {
@@ -141,6 +142,18 @@ app.whenReady().then(async () => {
     createWindow();
     createHudWindow();
     updateActivationPolling();
+
+    // Register Global Shortcut
+    globalShortcut.register('Alt+A', () => {
+        if (mainWindow) {
+            if (mainWindow.isVisible()) {
+                mainWindow.hide();
+            } else {
+                mainWindow.show();
+                mainWindow.focus();
+            }
+        }
+    });
 });
 
 // IPC Handlers

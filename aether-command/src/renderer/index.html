@@ -179,6 +179,31 @@
             background: rgba(255, 255, 255, 0.1);
             border-radius: 2px;
         }
+        /* Status Indicators */
+        .status-indicators {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+        .status-pill {
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            font-size: 10px;
+            color: var(--text-muted);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .status-pill.active {
+            background: rgba(0, 229, 255, 0.15);
+            color: var(--accent-primary);
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+            transform: translateY(-2px);
+        }
         /* Settings Styles */
         .setting-group {
             margin-bottom: 24px;
@@ -327,8 +352,18 @@
                 <span id="debug-fps">FPS: --</span>
                 <span id="debug-conf">CONF: --</span>
             </div>
+            <div id="proximity-warning" style="position: absolute; bottom: 50%; left: 10%; right: 10%; background: rgba(255, 75, 43, 0.9); color: white; padding: 10px; border-radius: 12px; font-weight: 600; text-align: center; opacity: 0; transition: opacity 0.3s; pointer-events: none; border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(10px); font-size: 0.8rem;">
+                ⚠️ HAND TOO CLOSE - MOVE BACK
+            </div>
             <!-- Scanline Overlay -->
             <div style="position: absolute; inset: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03)); background-size: 100% 2px, 3px 100%; pointer-events: none; opacity: 0.3;"></div>
+        </div>
+        <div class="status-indicators">
+            <div class="status-pill" id="status-pinch">PINCH</div>
+            <div class="status-pill" id="status-fist">FIST</div>
+            <div class="status-pill" id="status-palm">PALM</div>
+            <div class="status-pill" id="status-peace">PEACE</div>
+            <div class="status-pill" id="status-swipe">SWIPE</div>
         </div>
         <div class="log-area" id="log">
             Awaiting gestures...

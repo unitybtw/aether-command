@@ -1,5 +1,6 @@
 import { HandTracker } from '../core/HandTracker';
 import { GestureEngine } from '../core/GestureEngine';
+import { VFXManager } from './VFXManager';
 
 declare global {
   interface Window {
@@ -41,6 +42,9 @@ class AetherCommandRenderer {
     private video: HTMLVideoElement;
     private tracker: HandTracker;
     private gesture: GestureEngine;
+    private vfx: VFXManager;
+    private canvas: HTMLCanvasElement;
+    private ctx: CanvasRenderingContext2D;
     private statusEl: HTMLElement;
     private logEl: HTMLElement;
 
@@ -59,11 +63,14 @@ class AetherCommandRenderer {
 
     constructor() {
         this.video = document.getElementById('webcam') as HTMLVideoElement;
+        this.canvas = document.getElementById('vfx-canvas') as HTMLCanvasElement;
+        this.ctx = this.canvas.getContext('2d')!;
         this.statusEl = document.getElementById('status-overlay')!;
         this.logEl = document.getElementById('log')!;
         
         this.tracker = new HandTracker();
         this.gesture = new GestureEngine();
+        this.vfx = new VFXManager(this.ctx);
 
         this.initialize();
     }
@@ -259,10 +266,19 @@ class AetherCommandRenderer {
     async loop() {
         if (!this.isRunning) return;
         
+        // Clear and Update VFX
+        this.canvas.width = this.canvas.clientWidth;
+        this.canvas.height = this.canvas.clientHeight;
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.vfx.update();
+
         try {
             const result = this.tracker.detect(this.video, performance.now());
             
             if (result && result.landmarks && result.landmarks.length > 0) {
+                // Draw Skeleton
+                this.vfx.drawSkeleton(result.landmarks[0], this.canvas.width, this.canvas.height);
+
                 // Only process gestures if activated (key held or feature off)
                 if (this.isActivated) {
                     const state = this.gesture.process(result.landmarks[0]);
@@ -283,6 +299,8 @@ class AetherCommandRenderer {
         } catch (e) {
             console.error('[Tracker] Error in loop:', e);
         }
+
+        this.vfx.draw();
         requestAnimationFrame(() => this.loop());
     }
 
@@ -349,6 +367,10 @@ class AetherCommandRenderer {
 
         // Debounce to prevent multiple triggers for the SAME continuous gesture
         if (now - lastTime > this.DEBOUNCE_MS) {
+            // Visual feedback burst
+            const videoRect = this.video.getBoundingClientRect();
+            this.vfx.createBurst(this.canvas.width / 2, this.canvas.height / 2, 30);
+
             window.electronAPI.triggerGestureAction(action);
             this.lastActionTimes.set(action, now);
             this.lastGlobalActionTime = now;

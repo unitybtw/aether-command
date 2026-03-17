@@ -3,128 +3,231 @@
 <head>
     <meta charset="UTF-8">
     <title>Aether Command</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0f111a;
-            --accent-color: #00e5ff;
-            --panel-bg: rgba(255, 255, 255, 0.05);
+            --bg-color: #050508;
+            --accent-primary: #00e5ff;
+            --accent-secondary: #7000ff;
+            --panel-bg: rgba(20, 20, 25, 0.7);
             --text-main: #ffffff;
-            --text-muted: #8892b0;
+            --text-muted: #94a3b8;
+            --border-glow: rgba(0, 229, 255, 0.2);
+            --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
         }
         body {
             background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(112, 0, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(0, 229, 255, 0.05) 0%, transparent 40%);
             color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Outfit', sans-serif;
             margin: 0;
-            padding: 20px;
-            padding-top: 45px; /* Added padding for traffic lights */
+            padding: 25px;
+            padding-top: 50px;
             display: grid;
-            grid-template-columns: 320px 1fr;
-            gap: 20px;
+            grid-template-columns: 380px 1fr;
+            gap: 25px;
             height: 100vh;
             box-sizing: border-box;
             user-select: none;
+            overflow: hidden;
         }
         .panel {
             background: var(--panel-bg);
-            border-radius: 16px;
-            padding: 20px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 24px;
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             display: flex;
             flex-direction: column;
+            box-shadow: var(--card-shadow);
+            transition: border-color 0.3s ease;
+        }
+        .panel:hover {
+            border-color: var(--border-glow);
         }
         h2 {
             margin-top: 0;
-            font-size: 1.2rem;
-            color: var(--accent-color);
-            letter-spacing: 1px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+            letter-spacing: 2px;
             text-transform: uppercase;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h2::before {
+            content: '';
+            width: 4px;
+            height: 16px;
+            background: var(--accent-primary);
+            border-radius: 2px;
+            box-shadow: 0 0 10px var(--accent-primary);
         }
         .feed-container {
             position: relative;
             width: 100%;
             aspect-ratio: 4/3;
-            border-radius: 12px;
+            border-radius: 18px;
             overflow: hidden;
             background: #000;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
         }
         video {
             width: 100%;
             height: 100%;
             object-fit: cover;
             transform: scaleX(-1);
+            opacity: 0.8;
         }
         #status-overlay {
             position: absolute;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.6);
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 0.8rem;
+            bottom: 12px;
+            right: 12px;
+            background: rgba(0,0,0,0.7);
+            padding: 6px 12px;
+            border-radius: 10px;
+            font-size: 0.75rem;
             color: #00ff00;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(0, 255, 0, 0.2);
         }
         #status-overlay::before {
             content: "";
             display: inline-block;
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             background: #00ff00;
             border-radius: 50%;
-            animation: pulse 2s infinite;
+            box-shadow: 0 0 8px #00ff00;
+            animation: pulse-simple 2s infinite;
         }
-        @keyframes pulse {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(0, 255, 0, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 0, 0); }
+        @keyframes pulse-simple {
+            0%, 100% { opacity: 0.5; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.1); }
         }
         .log-area {
-            margin-top: 15px;
+            margin-top: 20px;
             flex-grow: 1;
-            background: rgba(0,0,0,0.3);
-            border-radius: 8px;
-            padding: 10px;
-            font-family: monospace;
-            font-size: 0.85rem;
+            background: rgba(0,0,0,0.4);
+            border-radius: 14px;
+            padding: 15px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
             color: var(--text-muted);
             overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+        .log-area::-webkit-scrollbar {
+            width: 4px;
+        }
+        .log-area::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
         }
         /* Settings Styles */
         .setting-group {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
         label {
             display: block;
-            margin-bottom: 8px;
-            font-size: 0.9rem;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            font-weight: 400;
             color: var(--text-muted);
         }
-        select, input[type="range"] {
+        select {
             width: 100%;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(15, 15, 20, 0.8) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: white;
-            padding: 8px;
-            border-radius: 6px;
+            padding: 10px 14px;
+            border-radius: 12px;
             outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+        select:hover {
+            border-color: var(--accent-primary);
+            background: rgba(15, 15, 20, 0.9) !important;
         }
         .gesture-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 10px;
-            padding: 10px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 8px;
+            margin-bottom: 12px;
+            padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            transition: all 0.3s;
+        }
+        .gesture-row:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+        .gesture-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 400;
+            font-size: 0.95rem;
         }
         .gesture-icon {
-            font-size: 1.2rem;
+            font-size: 1.4rem;
+            filter: drop-shadow(0 0 5px rgba(255,255,255,0.2));
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--accent-primary);
+            transition: transform 0.2s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+        input[type="checkbox"] {
+            accent-color: var(--accent-primary);
+            width: 16px;
+            height: 16px;
             margin-right: 10px;
+        }
+        .right-content {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        .right-content::-webkit-scrollbar {
+            width: 5px;
+        }
+        .right-content::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
         }
     </style>
 </head>
@@ -135,13 +238,14 @@
         <h2>Aether Engine</h2>
         <div class="feed-container">
             <video id="webcam" autoplay playsinline muted></video>
+            <canvas id="vfx-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
             <div id="status-overlay">Initializing Tracker...</div>
-            <div id="gesture-feedback" style="position: absolute; top: 10px; right: 10px; background: rgba(0, 229, 255, 0.2); padding: 5px 12px; border-radius: 20px; font-weight: bold; color: var(--accent-color); opacity: 0; transition: opacity 0.3s; border: 1px solid var(--accent-color);">
-                DETECTED: <span id="last-gesture">-</span>
+            <div id="gesture-feedback" style="position: absolute; top: 10px; left: 10px; background: rgba(0, 229, 255, 0.1); padding: 6px 16px; border-radius: 20px; font-weight: 600; color: var(--accent-primary); opacity: 0; transition: all 0.3s; border: 1px solid var(--accent-primary); backdrop-filter: blur(10px); font-size: 0.9rem;">
+                ACTIVE: <span id="last-gesture">-</span>
             </div>
-            <div id="status-activation" style="position: absolute; bottom: 10px; left: 10px; display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 12px; font-size: 12px; border: 1px solid rgba(255,255,255,0.1);">
-                <div id="activation-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #4CAF50; box-shadow: 0 0 8px #4CAF50;"></div>
-                <span id="activation-text">Tracking Active</span>
+            <div id="status-activation" style="position: absolute; bottom: 12px; left: 12px; display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.6); padding: 6px 14px; border-radius: 12px; font-size: 11px; border: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(10px);">
+                <div id="activation-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #4CAF50; box-shadow: 0 0 10px #4CAF50;"></div>
+                <span id="activation-text" style="color: #fff; opacity: 0.8;">Tracking Live</span>
             </div>
         </div>
         <div class="log-area" id="log">
@@ -150,11 +254,11 @@
     </div>
 
     <!-- Right Panel: Configurations -->
-    <div class="panel">
+    <div class="panel right-content">
         <h2>Command Mappings</h2>
         
         <div class="gesture-row">
-            <div><span class="gesture-icon">🤏</span> Pinch</div>
+            <div class="gesture-label"><span class="gesture-icon">🤏</span> <span>Pinch</span></div>
             <select id="map-pinch">
                 <option value="PLAY_PAUSE" selected>Play / Pause Media</option>
                 <option value="NEXT_TRACK">Next Track</option>
@@ -179,7 +283,7 @@
         </div>
 
         <div class="gesture-row">
-            <div><span class="gesture-icon">✊</span> Fist</div>
+            <div class="gesture-label"><span class="gesture-icon">✊</span> <span>Fist</span></div>
             <select id="map-fist">
                 <option value="PLAY_PAUSE">Play / Pause Media</option>
                 <option value="NEXT_TRACK">Next Track</option>
@@ -204,7 +308,7 @@
         </div>
 
         <div class="gesture-row">
-            <div><span class="gesture-icon">✋</span> Open Palm</div>
+            <div class="gesture-label"><span class="gesture-icon">✋</span> <span>Open Palm</span></div>
             <select id="map-palm">
                 <option value="PLAY_PAUSE">Play / Pause Media</option>
                 <option value="NEXT_TRACK">Next Track</option>
@@ -229,7 +333,7 @@
         </div>
 
         <div class="gesture-row">
-            <div><span class="gesture-icon">↔️</span> Swipes</div>
+            <div class="gesture-label"><span class="gesture-icon">↔️</span> <span>Swipes</span></div>
             <select id="map-swipe">
                 <option value="SPACES" selected>Switch Desktop Spaces</option>
                 <option value="PLAY_PAUSE">Play / Pause Media</option>

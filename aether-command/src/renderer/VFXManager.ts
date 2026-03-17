@@ -67,25 +67,25 @@ export class VFXManager {
 
         // Scanning Glow
         const gradient = this.ctx.createRadialGradient(wx, wy, 20, wx, wy, 150);
-        gradient.addColorStop(0, this.hexToRgba(mainColor, 0.1));
+        gradient.addColorStop(0, this.hexToRgba(mainColor, 0.15));
         gradient.addColorStop(1, 'transparent');
         this.ctx.fillStyle = gradient;
         this.ctx.fillRect(0, 0, width, height);
 
-        this.ctx.shadowBlur = 10;
+        this.ctx.shadowBlur = 4; // Reduced from 10
         this.ctx.shadowColor = mainColor;
         this.ctx.strokeStyle = this.hexToRgba(mainColor, 0.6);
-        this.ctx.lineWidth = 2.5;
+        this.ctx.lineWidth = 2;
 
         connections.forEach(path => {
             this.ctx.beginPath();
-            path.forEach((idx, i) => {
-                const pt = landmarks[idx];
+            for (let i = 0; i < path.length; i++) {
+                const pt = landmarks[path[i]];
                 const x = (1 - pt.x) * width;
                 const y = pt.y * height;
                 if (i === 0) this.ctx.moveTo(x, y);
                 else this.ctx.lineTo(x, y);
-            });
+            }
             this.ctx.stroke();
         });
 
@@ -93,25 +93,25 @@ export class VFXManager {
             const x = (1 - pt.x) * width;
             const y = pt.y * height;
             
-            // Draw Ghost Trail for Fingertips
+            // Draw Ghost Trail for Fingertips (Optimized)
             if ([8, 12, 16, 20].includes(idx)) {
                 let trail = this.trails.get(idx);
                 if (!trail) { trail = []; this.trails.set(idx, trail); }
                 trail.push({ x, y });
-                if (trail.length > 10) trail.shift();
+                if (trail.length > 6) trail.shift(); // Reduced from 10
 
                 this.ctx.beginPath();
                 this.ctx.moveTo(trail[0].x, trail[0].y);
-                trail.forEach((t, i) => {
-                    this.ctx.lineTo(t.x, t.y);
-                });
-                this.ctx.strokeStyle = this.hexToRgba(mainColor, 0.3);
-                this.ctx.lineWidth = 1.5;
+                for (let i = 1; i < trail.length; i++) {
+                    this.ctx.lineTo(trail[i].x, trail[i].y);
+                }
+                this.ctx.strokeStyle = this.hexToRgba(mainColor, 0.2);
+                this.ctx.lineWidth = 1;
                 this.ctx.stroke();
             }
 
             this.ctx.beginPath();
-            this.ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+            this.ctx.arc(x, y, 3, 0, Math.PI * 2);
             this.ctx.fillStyle = "#fff";
             this.ctx.fill();
 
@@ -119,14 +119,7 @@ export class VFXManager {
                 this.ctx.strokeStyle = this.hexToRgba(mainColor, 0.8);
                 this.ctx.lineWidth = 1;
                 this.ctx.beginPath();
-                this.ctx.arc(x, y, 8, 0, Math.PI * 2);
-                this.ctx.stroke();
-                
-                this.ctx.beginPath();
-                this.ctx.moveTo(x - 12, y); this.ctx.lineTo(x - 6, y);
-                this.ctx.moveTo(x + 6, y); this.ctx.lineTo(x + 12, y);
-                this.ctx.moveTo(x, y - 12); this.ctx.lineTo(x, y - 6);
-                this.ctx.moveTo(x, y + 6); this.ctx.lineTo(x, y + 12);
+                this.ctx.arc(x, y, 7, 0, Math.PI * 2);
                 this.ctx.stroke();
             }
         });
@@ -143,17 +136,23 @@ export class VFXManager {
         this.ctx.restore();
     }
 
+    private colorCache: Map<string, {r: number, g: number, b: number}> = new Map();
     private hexToRgba(hex: string, alpha: number): string {
-        let r = 0, g = 0, b = 0;
-        if (hex.length === 4) {
-            r = parseInt(hex[1] + hex[1], 16);
-            g = parseInt(hex[2] + hex[2], 16);
-            b = parseInt(hex[3] + hex[3], 16);
-        } else if (hex.length === 7) {
-            r = parseInt(hex.substring(1, 3), 16);
-            g = parseInt(hex.substring(3, 5), 16);
-            b = parseInt(hex.substring(5, 7), 16);
+        let color = this.colorCache.get(hex);
+        if (!color) {
+            let r = 0, g = 0, b = 0;
+            if (hex.length === 4) {
+                r = parseInt(hex[1] + hex[1], 16);
+                g = parseInt(hex[2] + hex[2], 16);
+                b = parseInt(hex[3] + hex[3], 16);
+            } else if (hex.length === 7) {
+                r = parseInt(hex.substring(1, 3), 16);
+                g = parseInt(hex.substring(3, 5), 16);
+                b = parseInt(hex.substring(5, 7), 16);
+            }
+            color = { r, g, b };
+            this.colorCache.set(hex, color);
         }
-        return `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(2)})`;
+        return `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
     }
 }

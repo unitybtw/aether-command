@@ -30,7 +30,7 @@ class LandmarkSmoother {
 
     public smooth(newLandmarks: any[]): any[] {
         if (this.lastLandmarks.length === 0) {
-            this.lastLandmarks = JSON.parse(JSON.stringify(newLandmarks));
+            this.lastLandmarks = newLandmarks.map(pt => ({ ...pt }));
             return newLandmarks;
         }
 
@@ -161,33 +161,42 @@ class AetherCommandRenderer {
     }
 
     private setupTiltEffect() {
+        let lastX = 0;
+        let lastY = 0;
+        const panels = document.querySelectorAll('.panel'); // Cache panels
+        
         document.addEventListener('mousemove', (e) => {
             if (!this.isVisible) return;
-            const panels = document.querySelectorAll('.panel');
-            const x = (e.clientX / window.innerWidth - 0.5) * 10;
-            const y = (e.clientY / window.innerHeight - 0.5) * 10;
+            const targetX = (e.clientX / window.innerWidth - 0.5) * 8;
+            const targetY = (e.clientY / window.innerHeight - 0.5) * 8;
 
-            panels.forEach((panel: any) => {
-                panel.style.transform = `perspective(1000px) rotateX(${-y}deg) rotateY(${x}deg)`;
-            });
+            // Only update if movement is significant (> 0.2 deg change)
+            if (Math.abs(targetX - lastX) > 0.2 || Math.abs(targetY - lastY) > 0.2) {
+                lastX = targetX;
+                lastY = targetY;
+                const transform = `perspective(1000px) rotateX(${-targetY}deg) rotateY(${targetX}deg)`;
+                panels.forEach((panel: any) => {
+                    panel.style.transform = transform;
+                });
+            }
         });
     }
 
     private estimateBrightness() {
         if (!this.video.videoWidth) return;
         const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = 40;
-        tempCanvas.height = 30;
+        tempCanvas.width = 20;
+        tempCanvas.height = 15;
         const tempCtx = tempCanvas.getContext('2d');
         if (!tempCtx) return;
         
-        tempCtx.drawImage(this.video, 0, 0, 40, 30);
-        const data = tempCtx.getImageData(0, 0, 40, 30).data;
+        tempCtx.drawImage(this.video, 0, 0, 20, 15);
+        const data = tempCtx.getImageData(0, 0, 20, 15).data;
         let brightness = 0;
         for (let i = 0; i < data.length; i += 4) {
-            brightness += (data[i] + data[i+1] + data[i+2]) / 3;
+            brightness += (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114);
         }
-        this.currentBrightness = brightness / (40 * 30);
+        this.currentBrightness = brightness / (20 * 15);
     }
 
     private drawStabilityGraph(stability: number) {
@@ -438,16 +447,21 @@ class AetherCommandRenderer {
 
         if (!this.isVisible) await new Promise(resolve => setTimeout(resolve, 66));
         
-        this.canvas.width = this.canvas.clientWidth;
-        this.canvas.height = this.canvas.clientHeight;
+        const cw = this.canvas.clientWidth;
+        const ch = this.canvas.clientHeight;
+        if (this.canvas.width !== cw || this.canvas.height !== ch) {
+            this.canvas.width = cw;
+            this.canvas.height = ch;
+        }
+
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.vfx.update();
 
         try {
-            const skipRate = this.isVisible ? 1 : 2;
+            const skipRate = this.isVisible ? 1 : 4; // Better battery saving
             if (this.frameCount % skipRate === 0) {
-                // Adaptive Light Normalization
-                if (this.frameCount % 60 === 0) {
+                // Adaptive Light Normalization - Occurs every 2 seconds roughly
+                if (this.frameCount % 120 === 0) {
                     this.estimateBrightness();
                 }
 

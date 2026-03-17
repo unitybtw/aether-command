@@ -4,6 +4,14 @@ import * as path from 'path';
 import { SettingsManager } from './SettingsManager';
 import { SystemService } from './SystemService';
 
+process.on('uncaughtException', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EPIPE') {
+        // Ignore broken pipe errors which occur when writing to console but stdout is closed
+        return;
+    }
+    console.error('Uncaught Exception:', err);
+});
+
 let mainWindow: BrowserWindow | null = null;
 let hudWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;

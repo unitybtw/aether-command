@@ -9,3 +9,10 @@ build/
 .next/
 .expo/
 *.tsbuildinfo
+
+# Project Filters
+siracsimsek/
+unitybtw/
+zero-ads-arcade-engine/
+aether-hands/
+index.html

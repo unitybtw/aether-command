@@ -100,6 +100,11 @@ class AetherCommandRenderer {
     // Continuous Control State
     private pinchAnchorY: number | null = null;
     private readonly CONTINUOUS_THRESH = 0.05; // 5% of screen height
+    
+    // Inactivity State
+    private lastInteractionTime: number = Date.now();
+    private isSuspended: boolean = false;
+    private readonly SUSPEND_TIMEOUT_MS = 300000; // 5 minutes
 
     constructor() {
         this.video = document.getElementById('webcam') as HTMLVideoElement;
@@ -118,6 +123,22 @@ class AetherCommandRenderer {
         this.confEl = document.getElementById('debug-conf')!;
 
         this.initialize();
+        this.setupInactivityListeners();
+    }
+
+    private setupInactivityListeners() {
+        window.addEventListener('mousemove', () => this.wakeUp());
+        window.addEventListener('keydown', () => this.wakeUp());
+        window.addEventListener('click', () => this.wakeUp());
+    }
+
+    private wakeUp() {
+        this.lastInteractionTime = Date.now();
+        if (this.isSuspended) {
+            this.isSuspended = false;
+            document.body.classList.remove('battery-saver');
+            this.log('Aether: System awake.');
+        }
     }
 
     async initialize() {
@@ -341,6 +362,20 @@ class AetherCommandRenderer {
 
     async loop() {
         if (!this.isRunning) return;
+
+        // Check for Inactivity (Energy Saving)
+        if (Date.now() - this.lastInteractionTime > this.SUSPEND_TIMEOUT_MS) {
+            if (!this.isSuspended) {
+                this.isSuspended = true;
+                document.body.classList.add('battery-saver');
+                this.log('Aether: Suspended tracking to energy-saving mode.');
+                window.electronAPI.setTrackingStatus(false);
+            }
+            this.vfx.update(); // Keep background effects running slowly
+            this.vfx.draw();
+            requestAnimationFrame(() => this.loop());
+            return;
+        }
         
         // Clear and Update VFX
         this.canvas.width = this.canvas.clientWidth;

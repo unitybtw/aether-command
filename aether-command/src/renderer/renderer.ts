@@ -13,6 +13,7 @@ declare global {
       log: (level: string, msg: string) => void;
       getActivationState: () => Promise<boolean>;
       onActivationStateChanged: (callback: (state: boolean) => void) => () => void;
+      setTrackingStatus: (active: boolean) => void;
     };
   }
 }
@@ -370,6 +371,9 @@ class AetherCommandRenderer {
                                        (this.leftHandMode ? (handedness === 'Left') : (handedness === 'Right'));
                 
                 if (isRequestedHand) {
+                    // Signal active tracking to Tray
+                    window.electronAPI.setTrackingStatus(true);
+
                     // Draw Skeleton
                     this.vfx.drawSkeleton(result.landmarks[0], this.canvas.width, this.canvas.height);
 
@@ -389,6 +393,7 @@ class AetherCommandRenderer {
                 // If hand lost for more than 2 seconds, log once
                 if (Date.now() - this.lastHandDetectionTime > 2000 && this.lastHandDetectionTime !== 0) {
                     this.log('Tracking: Hand lost.');
+                    window.electronAPI.setTrackingStatus(false);
                     this.lastHandDetectionTime = 0;
                     this.updateGestureUI(null);
                 }

@@ -15,6 +15,7 @@ process.on('uncaughtException', (err: NodeJS.ErrnoException) => {
 let mainWindow: BrowserWindow | null = null;
 let hudWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+let isTracking = false;
 let isQuiting = false;
 
 let settingsManager: SettingsManager;
@@ -226,6 +227,16 @@ ipcMain.on('set-login-item', (_event, openAtLogin) => {
         openAtLogin: openAtLogin,
         openAsHidden: true
     });
+});
+
+ipcMain.on('set-tracking-status', (_event, active) => {
+    if (tray && active !== isTracking) {
+        isTracking = active;
+        tray.setToolTip(`Aether Command ${active ? '[LIVE]' : '[IDLE]'}`);
+        if (process.platform === 'darwin') {
+            tray.setTitle(active ? '●' : ''); 
+        }
+    }
 });
 
 ipcMain.handle('get-login-item', () => {

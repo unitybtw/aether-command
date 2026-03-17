@@ -90,7 +90,7 @@ export class AetherEngine {
                         this.smoothedHands[hIdx] = landmarks.map((p: any) => ({...p}));
                     } else {
                         landmarks.forEach((pt: any, i: number) => {
-                            const smoothed = this.smoothedHands[hIdx][i];
+                            const smoothed = this.smoothedHands[hIdx]?.[i];
                             if (smoothed && pt) {
                                 smoothed.x += (pt.x - smoothed.x) * this.lerpAmount;
                                 smoothed.y += (pt.y - smoothed.y) * this.lerpAmount;

@@ -4291,7 +4291,7 @@ var AetherEngine = class {
             this.smoothedHands[hIdx] = landmarks.map((p2) => ({ ...p2 }));
           } else {
             landmarks.forEach((pt2, i2) => {
-              const smoothed2 = this.smoothedHands[hIdx][i2];
+              const smoothed2 = this.smoothedHands[hIdx]?.[i2];
               if (smoothed2 && pt2) {
                 smoothed2.x += (pt2.x - smoothed2.x) * this.lerpAmount;
                 smoothed2.y += (pt2.y - smoothed2.y) * this.lerpAmount;

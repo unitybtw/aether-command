@@ -33,6 +33,28 @@
             box-sizing: border-box;
             user-select: none;
             overflow: hidden;
+            transition: background-color 0.5s ease;
+        }
+        body.gesture-active {
+            background-color: rgba(0, 229, 255, 0.05);
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            transition: opacity 0.5s;
+            background: radial-gradient(circle at 50% 50%, var(--accent-primary) 0%, transparent 60%);
+            opacity: 0;
+            z-index: -1;
+        }
+        body.gesture-active::after {
+            opacity: 0.15;
+            animation: pulse-ring 1s ease-out infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.15; }
+            100% { transform: scale(1.2); opacity: 0; }
         }
         .panel {
             background: var(--panel-bg);

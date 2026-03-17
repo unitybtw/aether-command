@@ -429,6 +429,7 @@ class AetherCommandRenderer {
         else if (state.swipeDirection) name = `SWIPE ${state.swipeDirection.toUpperCase()}`;
 
         if (name !== 'NONE') {
+            document.body.classList.add('gesture-active');
             gestureSpan.innerText = name;
             feedbackEl.style.opacity = '1';
             
@@ -437,6 +438,7 @@ class AetherCommandRenderer {
                 clearTimeout(this.gestureTimeout);
             }
             this.gestureTimeout = setTimeout(() => {
+                document.body.classList.remove('gesture-active');
                 feedbackEl.style.opacity = '0';
                 this.gestureTimeout = null;
             }, 1000);

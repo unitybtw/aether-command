@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, systemPreferences } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, systemPreferences, session } from 'electron';
 import { exec } from 'child_process';
 import * as path from 'path';
 import { SettingsManager } from './SettingsManager';
@@ -7,36 +7,36 @@ import { SystemService } from './SystemService';
 let mainWindow: BrowserWindow | null = null;
 let hudWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+let isQuiting = false;
 
 let settingsManager: SettingsManager;
 let systemService: SystemService;
 
 const checkPermissions = async () => {
-  if (process.platform !== 'darwin') return;
-  
-  const cameraStatus = systemPreferences.getMediaAccessStatus('camera');
-  console.log(`[Main] Current Camera Status: ${cameraStatus}`);
-  
-  if (cameraStatus !== 'granted') {
-    console.log('[Main] Requesting Camera Access...');
-    const granted = await systemPreferences.askForMediaAccess('camera');
-    console.log(`[Main] Camera Access Result: ${granted}`);
-  }
-
-  // Explicitly handle renderer permission requests
-  const { session } = require('electron');
-  session.defaultSession.setPermissionRequestHandler((_webContents: any, permission: string, callback: (granted: boolean) => void) => {
-    if (permission === 'media') {
-      callback(true);
-    } else {
-      callback(false);
+    if (process.platform !== 'darwin') return;
+    
+    const cameraStatus = systemPreferences.getMediaAccessStatus('camera');
+    console.log(`[Main] Current Camera Status: ${cameraStatus}`);
+    
+    if (cameraStatus !== 'granted') {
+        console.log('[Main] Requesting Camera Access...');
+        const granted = await systemPreferences.askForMediaAccess('camera');
+        console.log(`[Main] Camera Access Result: ${granted}`);
     }
-  });
 
-  session.defaultSession.setPermissionCheckHandler((_webContents: any, permission: string) => {
-    if (permission === 'media') return true;
-    return false;
-  });
+    // Explicitly handle renderer permission requests
+    session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+        if (permission === 'media') {
+            callback(true);
+        } else {
+            callback(false);
+        }
+    });
+
+    session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+        if (permission === 'media') return true;
+        return false;
+    });
 };
 
 const createTray = () => {
@@ -44,13 +44,20 @@ const createTray = () => {
         const iconPath = path.join(__dirname, '..', '..', 'src', 'assets', 'iconTemplate.png');
         const icon = nativeImage.createFromPath(iconPath).resize({ width: 18, height: 18 });
         
-        // Removed setTemplateImage(true) to support color icons
         tray = new Tray(icon);
         const contextMenu = Menu.buildFromTemplate([
-            { label: 'Aether Control v1.5', enabled: false },
+            { label: 'Aether Control v1.7', enabled: false },
             { type: 'separator' },
-            { label: 'Dashboard', click: () => mainWindow?.show() },
-            { label: 'Quit', click: () => app.quit() }
+            { label: 'Show Dashboard', click: () => {
+                mainWindow?.show();
+                mainWindow?.focus();
+            }},
+            { label: 'Hide Dashboard', click: () => mainWindow?.hide() },
+            { type: 'separator' },
+            { label: 'Quit', click: () => {
+                isQuiting = true;
+                app.quit();
+            }}
         ]);
 
         tray.setToolTip('Aether Command');
@@ -61,55 +68,70 @@ const createTray = () => {
 };
 
 const createWindow = () => {
-  mainWindow = new BrowserWindow({
-    width: 900,
-    height: 700,
-    show: true, // Explicitly show on launch so user knows it's working
-    frame: false,
-    transparent: true,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
-    }
-  });
+    mainWindow = new BrowserWindow({
+        width: 900,
+        height: 700,
+        show: true, 
+        frame: true,
+        titleBarStyle: 'hiddenInset',
+        transparent: true,
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js'),
+            backgroundThrottling: false
+        }
+    });
 
-  mainWindow.loadFile(path.join(__dirname, '..', '..', 'src', 'renderer', 'index.html'));
+    mainWindow.loadFile(path.join(__dirname, '..', '..', 'src', 'renderer', 'index.html'));
+
+    mainWindow.on('close', (event) => {
+        if (!isQuiting) {
+            event.preventDefault();
+            mainWindow?.hide();
+        }
+    });
 };
 
 const createHudWindow = () => {
-  hudWindow = new BrowserWindow({
-      width: 400,
-      height: 300,
-      transparent: true,
-      frame: false,
-      alwaysOnTop: true,
-      skipTaskbar: true,
-      hasShadow: false,
-      show: false,
-      webPreferences: {
-          nodeIntegration: false,
-          contextIsolation: true,
-          preload: path.join(__dirname, 'preload.js')
-      }
-  });
+    hudWindow = new BrowserWindow({
+        width: 400,
+        height: 300,
+        transparent: true,
+        frame: false,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        hasShadow: false,
+        show: false,
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js'),
+            backgroundThrottling: false
+        }
+    });
 
-  hudWindow.loadFile(path.join(__dirname, '..', '..', 'src', 'renderer', 'hud.html'));
-  hudWindow.setIgnoreMouseEvents(true);
+    hudWindow.loadFile(path.join(__dirname, '..', '..', 'src', 'renderer', 'hud.html'));
+    hudWindow.setIgnoreMouseEvents(true);
 };
 
-app.whenReady().then(async () => {
-  // Initialize services after app is ready
-  settingsManager = new SettingsManager();
-  systemService = new SystemService();
+app.on('before-quit', () => {
+    isQuiting = true;
+});
 
-  app.dock.hide();
-  
-  await checkPermissions();
-  createTray();
-  createWindow();
-  createHudWindow();
-  updateActivationPolling();
+app.whenReady().then(async () => {
+    settingsManager = new SettingsManager();
+    systemService = new SystemService();
+
+    if (process.platform === 'darwin') {
+        app.dock?.hide();
+    }
+    
+    await checkPermissions();
+    createTray();
+    createWindow();
+    createHudWindow();
+    updateActivationPolling();
 });
 
 // IPC Handlers
@@ -121,7 +143,7 @@ const stopActivationPolling = () => {
         clearInterval(activationPollTimer);
         activationPollTimer = null;
     }
-    isKeyHeld = true; // Always on when not polling
+    isKeyHeld = true; 
     mainWindow?.webContents.send('activation-state-changed', true);
 };
 
@@ -166,11 +188,11 @@ const updateActivationPolling = () => {
     }
 };
 
-ipcMain.on('renderer-log', (event, level, msg) => {
+ipcMain.on('renderer-log', (_event, level, msg) => {
     console.log(`[Renderer ${level.toUpperCase()}] ${msg}`);
 });
 
-ipcMain.on('gesture-action', (event, action) => {
+ipcMain.on('gesture-action', (_event, action) => {
     if (!isKeyHeld) {
         console.log('[Main] Gesture blocked: Activation key NOT held.');
         return;
@@ -183,18 +205,15 @@ ipcMain.on('gesture-action', (event, action) => {
 });
 
 ipcMain.handle('get-settings', () => {
-    console.log('[Main] IPC: get-settings requested');
-    const s = settingsManager.getSettings();
-    console.log('[Main] IPC: get-settings responding with:', JSON.stringify(s));
-    return s;
+    return settingsManager.getSettings();
 });
 
-ipcMain.on('save-settings', (event, settings) => {
+ipcMain.on('save-settings', (_event, settings) => {
     settingsManager.updateSettings(settings);
     updateActivationPolling();
 });
 
-ipcMain.on('set-login-item', (event, openAtLogin) => {
+ipcMain.on('set-login-item', (_event, openAtLogin) => {
     app.setLoginItemSettings({
         openAtLogin: openAtLogin,
         openAsHidden: true
@@ -207,7 +226,8 @@ ipcMain.handle('get-login-item', () => {
 
 ipcMain.handle('get-activation-state', () => isKeyHeld);
 
-// Window management
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+    if (process.platform !== 'darwin') {
+        app.quit();
+    }
 });

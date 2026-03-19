@@ -55,7 +55,9 @@ const checkPermissions = async () => {
 const createTray = () => {
     try {
         const iconPath = path.join(__dirname, '..', '..', 'src', 'assets', 'iconTemplate.png');
-        const icon = nativeImage.createFromPath(iconPath).resize({ width: 18, height: 18 });
+        const icon = nativeImage.createFromPath(iconPath)
+            .resize({ width: 18, height: 18 });
+        icon.setTemplateImage(true);
         
         tray = new Tray(icon);
         const contextMenu = Menu.buildFromTemplate([
@@ -148,6 +150,8 @@ app.whenReady().then(async () => {
     systemService = new SystemService();
 
     if (process.platform === 'darwin') {
+        const iconPath = path.join(__dirname, '..', '..', 'src', 'assets', 'icon.png');
+        app.dock?.setIcon(nativeImage.createFromPath(iconPath));
         app.dock?.hide();
     }
     

@@ -7,6 +7,10 @@ export class VFXManager {
     private trails: Map<number, { x: number, y: number }[]> = new Map();
     private extraVfx: boolean = true;
     private colorCache: Map<string, {r: number, g: number, b: number}> = new Map();
+    private readonly CONNECTIONS = [
+        [0, 1, 2, 3, 4], [0, 5, 6, 7, 8], [9, 10, 11, 12],
+        [13, 14, 15, 16], [0, 17, 18, 19, 20], [5, 9, 13, 17, 5]
+    ];
 
     constructor(ctx: CanvasRenderingContext2D) {
         this.ctx = ctx;
@@ -70,10 +74,6 @@ export class VFXManager {
         this.ctx.save();
         
         const mainColor = confidence < 0.7 ? '#ff4b2b' : this.baseColor;
-        const connections = [
-            [0, 1, 2, 3, 4], [0, 5, 6, 7, 8], [9, 10, 11, 12],
-            [13, 14, 15, 16], [0, 17, 18, 19, 20], [5, 9, 13, 17, 5]
-        ];
 
         const wrist = landmarks[0];
         const wx = (1 - wrist.x) * width;
@@ -93,7 +93,7 @@ export class VFXManager {
         this.ctx.strokeStyle = this.hexToRgba(mainColor, 0.6);
         this.ctx.lineWidth = 2;
 
-        connections.forEach(path => {
+        this.CONNECTIONS.forEach(path => {
             this.ctx.beginPath();
             for (let i = 0; i < path.length; i++) {
                 const pt = landmarks[path[i]];

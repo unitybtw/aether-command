@@ -59,18 +59,20 @@ export class GestureEngine {
         // 3. Velocity & Directional Swipe
         let swipeDirection: 'left' | 'right' | 'up' | 'down' | null = null;
         if (this.lastWristPos) {
-            this.velocity = {
-                x: wrist.x - this.lastWristPos.x,
-                y: wrist.y - this.lastWristPos.y
-            };
+            this.velocity.x = wrist.x - this.lastWristPos.x;
+            this.velocity.y = wrist.y - this.lastWristPos.y;
             
             const thresh = 0.4 * handScale; 
             if (this.velocity.x > thresh) swipeDirection = 'left';
             else if (this.velocity.x < -thresh) swipeDirection = 'right';
             else if (this.velocity.y < -thresh) swipeDirection = 'up';
             else if (this.velocity.y > thresh) swipeDirection = 'down';
+            
+            this.lastWristPos.x = wrist.x;
+            this.lastWristPos.y = wrist.y;
+        } else {
+            this.lastWristPos = { x: wrist.x, y: wrist.y };
         }
-        this.lastWristPos = { x: wrist.x, y: wrist.y };
 
         return {
             isPinching,

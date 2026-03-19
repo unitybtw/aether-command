@@ -126,6 +126,8 @@ class AetherCommandRenderer {
     private currentBrightness: number = 0;
     private brightnessCanvas = document.createElement('canvas');
     private statusPills: NodeListOf<Element>;
+    private uiElements: Record<string, HTMLElement> = {};
+    private mapElements: Record<string, HTMLSelectElement> = {};
 
     constructor() {
         this.video = document.getElementById('webcam') as HTMLVideoElement;
@@ -146,6 +148,15 @@ class AetherCommandRenderer {
         this.lastFrameTime = performance.now();
         this.fpsEl = document.getElementById('debug-fps')!;
         this.confEl = document.getElementById('debug-conf')!;
+
+        // Cache frequent DOM lookups
+        this.uiElements['gesture-feedback'] = document.getElementById('gesture-feedback')!;
+        this.uiElements['last-gesture'] = document.getElementById('last-gesture')!;
+        this.uiElements['gesture-status-overlay'] = document.getElementById('gesture-status-overlay')!;
+        this.uiElements['quality-text'] = document.getElementById('quality-text')!;
+        
+        const mapIds = ['map-pinch', 'map-fist', 'map-palm', 'map-peace', 'map-swipe'];
+        mapIds.forEach(id => this.mapElements[id] = document.getElementById(id) as HTMLSelectElement);
 
         this.initialize();
         this.setupInactivityListeners();
@@ -211,7 +222,7 @@ class AetherCommandRenderer {
     }
 
     private updateQualityUI(confidence: number, isHandFound: boolean) {
-        const qualityText = document.getElementById('quality-text');
+        const qualityText = this.uiElements['quality-text'];
         if (!qualityText) return;
         
         if (!isHandFound) {
@@ -612,9 +623,8 @@ class AetherCommandRenderer {
     }
 
     private updateGestureUI(state: any) {
-        const feedbackEl = document.getElementById('gesture-feedback');
-        const gestureSpan = document.getElementById('last-gesture');
-        const overlay = document.getElementById('gesture-status-overlay');
+        const feedbackEl = this.uiElements['gesture-feedback'];
+        const gestureSpan = this.uiElements['last-gesture'];
         if (!feedbackEl || !gestureSpan) return;
 
         if (!state) {
@@ -648,8 +658,9 @@ class AetherCommandRenderer {
 
     private highlightStatus(id: string) {
         this.clearStatusHighlights();
-        const el = document.getElementById(id);
-        if (el) el.classList.add('active');
+        if (!id) return;
+        if (!this.uiElements[id]) this.uiElements[id] = document.getElementById(id)!;
+        if (this.uiElements[id]) this.uiElements[id].classList.add('active');
     }
 
     private clearStatusHighlights() {
@@ -660,7 +671,7 @@ class AetherCommandRenderer {
         if (!state.isPinching) this.pinchAnchorY = null;
         let action: string | null = null;
         if (state.isPinching) {
-            action = (document.getElementById('map-pinch') as HTMLSelectElement).value;
+            action = this.mapElements['map-pinch'].value;
             if (state.pinchStartPos && (action === 'VOLUME_UP' || action === 'VOLUME_DOWN' || action === 'BRIGHTNESS_UP' || action === 'BRIGHTNESS_DOWN')) {
                 if (this.pinchAnchorY === null) this.pinchAnchorY = state.pinchStartPos.y;
                 else {
@@ -676,11 +687,11 @@ class AetherCommandRenderer {
                 return;
             }
         } 
-        else if (state.isFist) action = (document.getElementById('map-fist') as HTMLSelectElement).value;
-        else if (state.isOpenPalm) action = (document.getElementById('map-palm') as HTMLSelectElement).value;
-        else if (state.isPeace) action = (document.getElementById('map-peace') as HTMLSelectElement).value;
+        else if (state.isFist) action = this.mapElements['map-fist'].value;
+        else if (state.isOpenPalm) action = this.mapElements['map-palm'].value;
+        else if (state.isPeace) action = this.mapElements['map-peace'].value;
         else if (state.swipeDirection) {
-            const swipeBase = (document.getElementById('map-swipe') as HTMLSelectElement).value;
+            const swipeBase = this.mapElements['map-swipe'].value;
             action = swipeBase === 'SPACES' ? (state.swipeDirection === 'left' ? 'SPACE_LEFT' : 'SPACE_RIGHT') : swipeBase;
         }
         if (action && action !== 'NONE') this.triggerAction(action);

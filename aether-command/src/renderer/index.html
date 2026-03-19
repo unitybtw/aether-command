@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Aether Command</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-color: #050508;
@@ -22,7 +22,7 @@
                 radial-gradient(circle at 20% 20%, rgba(112, 0, 255, 0.05) 0%, transparent 40%),
                 radial-gradient(circle at 80% 80%, rgba(0, 229, 255, 0.05) 0%, transparent 40%);
             color: var(--text-main);
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             margin: 0;
             padding: 25px;
             padding-top: 60px;
@@ -74,31 +74,30 @@
             pointer-events: none;
         }
         .panel {
-            background: var(--panel-bg);
-            border-radius: 24px;
+            background: rgba(25, 25, 30, 0.65);
+            border-radius: 16px;
             padding: 24px;
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            backdrop-filter: blur(30px) saturate(180%);
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
             border: 1px solid rgba(255, 255, 255, 0.08);
             display: flex;
             flex-direction: column;
-            box-shadow: var(--card-shadow);
-            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             height: 100%;
             box-sizing: border-box;
             min-height: 0;
-            perspective: 1000px;
         }
         .panel:hover {
-            border-color: var(--accent-primary);
-            box-shadow: 0 15px 50px rgba(0, 229, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.6);
         }
         h2 {
             margin-top: 0;
             font-size: 1rem;
             font-weight: 600;
             color: var(--accent-primary);
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             text-transform: uppercase;
             margin-bottom: 20px;
             display: flex;
@@ -108,20 +107,20 @@
         h2::before {
             content: '';
             width: 4px;
-            height: 16px;
+            height: 14px;
             background: var(--accent-primary);
             border-radius: 2px;
-            box-shadow: 0 0 10px var(--accent-primary);
+            box-shadow: 0 0 6px rgba(0, 229, 255, 0.4);
         }
         .feed-container {
             position: relative;
             width: 100%;
             aspect-ratio: 4/3;
-            border-radius: 18px;
+            border-radius: 12px;
             overflow: hidden;
             background: #000;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
             flex-shrink: 0;
         }
         video {
@@ -239,22 +238,30 @@
         }
         select {
             width: 100%;
-            background: rgba(15, 15, 20, 0.8) !important;
+            background: rgba(20, 20, 25, 0.8) !important;
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: white;
             padding: 10px 14px;
-            border-radius: 12px;
+            padding-right: 30px;
+            border-radius: 10px;
             outline: none;
             appearance: none;
             -webkit-appearance: none;
-            -moz-appearance: none;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s ease;
             font-family: inherit;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 16px;
         }
         select:hover {
+            border-color: rgba(255, 255, 255, 0.3);
+            background-color: rgba(30, 30, 35, 0.9) !important;
+        }
+        select:focus {
             border-color: var(--accent-primary);
-            background: rgba(15, 15, 20, 0.9) !important;
+            box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.2);
         }
         .gesture-row {
             display: flex;
@@ -306,10 +313,37 @@
             transform: scale(1.2);
         }
         input[type="checkbox"] {
-            accent-color: var(--accent-primary);
+            appearance: none;
+            -webkit-appearance: none;
+            width: 36px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            position: relative;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.3s;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        input[type="checkbox"]::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
             width: 16px;
             height: 16px;
-            margin-right: 10px;
+            background: #fff;
+            border-radius: 50%;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        input[type="checkbox"]:checked {
+            background: var(--accent-primary);
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+        }
+        input[type="checkbox"]:checked::after {
+            left: 18px;
         }
         .right-content {
             display: flex;
@@ -402,11 +436,13 @@
             <div class="status-pill" id="status-swipe">SWIPE</div>
         </div>
         <div style="display: flex; gap: 10px; align-items: center; margin-top: 15px; flex-shrink: 0;">
-            <input type="text" id="log-search" placeholder="Search logs..." style="flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 6px 12px; font-size: 10px; color: var(--text-muted); outline: none;">
-            <button id="clear-log" style="background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); border-radius: 8px; padding: 4px 8px; font-size: 9px; cursor: pointer; transition: all 0.2s;">CLEAR</button>
+            <input type="text" id="log-search" placeholder="Search logs..." style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 8px 14px; font-size: 0.85rem; color: var(--text-main); font-family: 'Inter', sans-serif; outline: none; transition: all 0.2s;">
+            <button id="clear-log" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); color: var(--text-main); border-radius: 10px; padding: 8px 14px; font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap;">Clear</button>
         </div>
         <style>
-            #clear-log:hover { background: rgba(255,255,255,0.05); color: #fff; border-color: var(--accent-primary); }
+            #log-search:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.15); }
+            #clear-log:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+            #clear-log:active { transform: scale(0.95); }
         </style>
         <div class="log-area" id="log">
             Awaiting gestures...

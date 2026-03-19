@@ -627,7 +627,11 @@ class AetherCommandRenderer {
             }
         }
         this.frameCount++;
-        requestAnimationFrame(() => this.loop());
+        if (this.isVisible) {
+            requestAnimationFrame(() => this.loop());
+        } else {
+            setTimeout(() => this.loop(), 33); // ~30FPS in background
+        }
     }
 
     private updateGestureUI(state: any) {

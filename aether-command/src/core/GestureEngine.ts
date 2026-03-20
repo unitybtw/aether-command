@@ -94,4 +94,9 @@ export class GestureEngine {
         const dz = p1.z - p2.z;
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
+    
+    public reset() {
+        this.lastWristPos = null;
+        this.velocity = { x: 0, y: 0 };
+    }
 }

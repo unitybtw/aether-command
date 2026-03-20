@@ -604,10 +604,12 @@ class AetherCommandRenderer {
                         this.updateQualityUI(confidence, true);
                         this.lastHandDetectionTime = Date.now();
                     } else {
+                        this.gesture.reset();
                         this.updateGestureUI(null);
                         this.updateQualityUI(confidence, false); // Still update quality even if not requested hand
                     }
                 } else {
+                    this.gesture.reset();
                     this.updateQualityUI(0, false);
                     if (Date.now() - this.lastHandDetectionTime > 2000 && this.lastHandDetectionTime !== 0) {
                         window.electronAPI.setTrackingStatus(false);
@@ -629,7 +631,6 @@ class AetherCommandRenderer {
         
         // Thermal / Performance Guard
         if (delta > 100) { // If frame takes > 100ms (sub 10FPS)
-            this.frameCount++; 
             if (this.frameCount % 5 === 0) {
                (window as any).isBatterySaverEnabled = true;
                this.log('System: Thermal / Performance limit hit. Auto-scaling initiated.');
@@ -706,7 +707,7 @@ class AetherCommandRenderer {
             this.isMouseModeActive = true;
             this.highlightStatus('status-palm'); // Show visual feedback in Dashboard
             const now = performance.now();
-            if (now - this.lastMouseUpdate > 10) { 
+            if (now - this.lastMouseUpdate > 16) { // 60Hz update rate to save resources
                 // Using state.lastWristPos which is now guaranteed to exist
                 const targetX = (1 - state.lastWristPos.x) * this.screenWidth;
                 const targetY = state.lastWristPos.y * this.screenHeight;

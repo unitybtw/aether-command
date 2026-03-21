@@ -71,7 +71,12 @@ const createTray = () => {
         
         tray = new Tray(icon);
         const contextMenu = Menu.buildFromTemplate([
-            { label: 'Aether Control v1.7', enabled: false },
+            { label: 'Aether Command v1.8', enabled: false },
+            { type: 'separator' },
+            { label: 'Toggle Tracking (Arm/Disarm)', click: () => {
+                isKeyHeld = !isKeyHeld;
+                mainWindow?.webContents.send('activation-state-changed', isKeyHeld);
+            }},
             { type: 'separator' },
             { label: 'Show Dashboard', click: () => {
                 mainWindow?.show();
@@ -79,7 +84,7 @@ const createTray = () => {
             }},
             { label: 'Hide Dashboard', click: () => mainWindow?.hide() },
             { type: 'separator' },
-            { label: 'Quit', click: () => {
+            { label: 'Quit Aether', click: () => {
                 isQuiting = true;
                 app.quit();
             }}

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Aether Laser Canvas</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 0 8px rgba(0, 229, 255, 0.8));
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { alpha: true });
+        
+        // Match actual window size
+        const resize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = 4;
+        };
+        window.addEventListener('resize', resize);
+        resize();
+
+        let lastX = 0;
+        let lastY = 0;
+        let isFirstPoint = true;
+
+        window.electronAPI.onDrawLaserPoint((_event, x, y, isDrawing, isClearing) => {
+            if (isClearing) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                isFirstPoint = true;
+                return;
+            }
+
+            if (!isDrawing) {
+                isFirstPoint = true;
+                
+                // Draw a small floating targeting ring to show where they are pointing
+                ctx.clearRect(0, 0, canvas.width, canvas.height); 
+                // Wait, if we clear rect here, it deletes the drawing! 
+                // We should have TWO canvases: one for the drawing layer, one for the floating crosshair layer.
+                return;
+            }
+
+            // We are Drawing
+            if (isFirstPoint) {
+                lastX = x;
+                lastY = y;
+                isFirstPoint = false;
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.strokeStyle = '#00e5ff';
+            ctx.stroke();
+
+            // Core white glow
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.lineWidth = 5; // Reset for next outer glow
+
+            lastX = x;
+            lastY = y;
+        });
+
+        // Add a secondary canvas for the floating cursor?
+        // Let's just create an HTML element cursor!
+        const cursor = document.createElement('div');
+        cursor.style.position = 'absolute';
+        cursor.style.width = '12px';
+        cursor.style.height = '12px';
+        cursor.style.border = '2px solid #00e5ff';
+        cursor.style.borderRadius = '50%';
+        cursor.style.transform = 'translate(-50%, -50%)';
+        cursor.style.pointerEvents = 'none';
+        cursor.style.transition = 'width 0.1s, height 0.1s';
+        cursor.style.boxShadow = '0 0 10px #00e5ff';
+        cursor.style.zIndex = '9999';
+        document.body.appendChild(cursor);
+
+        window.electronAPI.onDrawLaserPoint((_event, x, y, isDrawing, isClearing) => {
+            cursor.style.left = x + 'px';
+            cursor.style.top = y + 'px';
+            if (isDrawing) {
+                cursor.style.width = '6px';
+                cursor.style.height = '6px';
+                cursor.style.backgroundColor = '#fff';
+            } else {
+                cursor.style.width = '12px';
+                cursor.style.height = '12px';
+                cursor.style.backgroundColor = 'transparent';
+            }
+        });
+    </script>
+</body>
+</html>

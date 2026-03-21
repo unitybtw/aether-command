@@ -23,6 +23,7 @@ process.on('uncaughtException', (err: NodeJS.ErrnoException) => {
 
 let mainWindow: BrowserWindow | null = null;
 let hudWindow: BrowserWindow | null = null;
+let laserWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isTracking = false;
 let isQuiting = false;
@@ -162,6 +163,30 @@ const createHudWindow = () => {
     hudWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }); // Make sure HUD shows on all desktops
 };
 
+const createLaserWindow = () => {
+    laserWindow = new BrowserWindow({
+        width: screen.getPrimaryDisplay().bounds.width,
+        height: screen.getPrimaryDisplay().bounds.height,
+        x: screen.getPrimaryDisplay().bounds.x,
+        y: screen.getPrimaryDisplay().bounds.y,
+        transparent: true,
+        frame: false,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        hasShadow: false,
+        focusable: false,
+        show: false,
+        webPreferences: {
+            preload: path.join(__dirname, 'preload.js'),
+            backgroundThrottling: false
+        }
+    });
+
+    laserWindow.loadFile(path.join(__dirname, '..', '..', 'src', 'renderer', 'laser.html'));
+    laserWindow.setIgnoreMouseEvents(true, { forward: true });
+    laserWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+};
+
 app.on('before-quit', () => {
     isQuiting = true;
     globalShortcut.unregisterAll();
@@ -182,6 +207,7 @@ app.whenReady().then(async () => {
     createTray();
     createWindow();
     createHudWindow();
+    createLaserWindow();
     updateActivationPolling();
 
     // Power Monitor
@@ -301,6 +327,20 @@ ipcMain.on('mouse-up', () => {
 
 ipcMain.on('mouse-click', (_event, button) => {
     systemService.clickMouse(button);
+});
+
+ipcMain.on('toggle-laser-mode', (_event, active) => {
+    if (active) {
+        laserWindow?.showInactive();
+    } else {
+        laserWindow?.hide();
+    }
+});
+
+ipcMain.on('draw-laser-point', (_event, x, y, isDrawing, isClearing) => {
+    if (laserWindow && laserWindow.isVisible()) {
+        laserWindow.webContents.send('draw-laser-point', x, y, isDrawing, isClearing);
+    }
 });
 
 ipcMain.handle('get-settings', () => {

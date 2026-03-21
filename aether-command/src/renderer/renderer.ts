@@ -138,6 +138,7 @@ class AetherCommandRenderer {
     private uiElements: Record<string, HTMLElement> = {};
     private mapElements: Record<string, HTMLSelectElement> = {};
     private isMouseModeActive: boolean = false;
+    private isLaserModeActive: boolean = false;
     private screenWidth: number = 2560; // Fallback
     private screenHeight: number = 1440; // Fallback
     private lastMouseUpdate: number = 0;
@@ -746,9 +747,19 @@ class AetherCommandRenderer {
 
                 const targetX = normX * this.screenWidth;
                 const targetY = normY * this.screenHeight;
-                (window.electronAPI as any).mouseMove(targetX, targetY);
+
+                if (this.isLaserModeActive) {
+                    (window.electronAPI as any).drawLaserPoint(targetX, targetY, state.isPinching, state.isFist);
+                } else {
+                    (window.electronAPI as any).mouseMove(targetX, targetY);
+                }
+                
                 this.lastMouseUpdate = now;
             }
+        } else if (this.isLaserModeActive) {
+            // Still update laser position even if not open palm, just to keep crosshair responsive?
+            // Optional, but keeping it inside isOpenPalm makes the Laser require an open palm to aim, which is safe.
+            this.isMouseModeActive = false;
         } else {
             this.isMouseModeActive = false;
         }

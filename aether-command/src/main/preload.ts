@@ -30,5 +30,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
         const sub = (_event: any, visible: boolean) => callback(visible);
         ipcRenderer.on('window-visibility', sub);
         return () => ipcRenderer.removeListener('window-visibility', sub);
+    },
+    toggleLaserMode: (active: boolean) => ipcRenderer.send('toggle-laser-mode', active),
+    drawLaserPoint: (x: number, y: number, isDrawing: boolean, isClearing: boolean) => ipcRenderer.send('draw-laser-point', x, y, isDrawing, isClearing),
+    onDrawLaserPoint: (callback: (x: number, y: number, isDrawing: boolean, isClearing: boolean) => void) => {
+        const subscription = (_event: any, x: number, y: number, isDrawing: boolean, isClearing: boolean) => callback(x, y, isDrawing, isClearing);
+        ipcRenderer.on('draw-laser-point', subscription);
+        return () => ipcRenderer.removeListener('draw-laser-point', subscription);
     }
 });

@@ -729,9 +729,14 @@ class AetherCommandRenderer {
         
         // Virtual Trackpad Logic
         const palmAction = this.mapElements['map-palm'].value;
-        if (palmAction === 'MOUSE_MODE' && state.isOpenPalm) {
-            this.isMouseModeActive = true;
-            this.highlightStatus('status-palm'); // Show visual feedback in Dashboard
+        
+        const isLaserTracking = this.isLaserModeActive; // Track wrist position even without palm if Laser is active
+        const isMouseTracking = palmAction === 'MOUSE_MODE' && state.isOpenPalm && !this.isLaserModeActive;
+        
+        if (isMouseTracking || isLaserTracking) {
+            this.isMouseModeActive = isMouseTracking;
+            if (isMouseTracking) this.highlightStatus('status-palm'); 
+
             const now = performance.now();
             if (now - this.lastMouseUpdate > 16) { // 60Hz update rate to save resources
                 let normX = 1 - state.lastWristPos.x;
@@ -750,21 +755,21 @@ class AetherCommandRenderer {
 
                 if (this.isLaserModeActive) {
                     (window.electronAPI as any).drawLaserPoint(targetX, targetY, state.isPinching, state.isFist);
+                    if (state.isFist) {
+                        this.vfx.createBurst(state.lastWristPos.x * this.canvas.width, state.lastWristPos.y * this.canvas.height, 30);
+                    }
                 } else {
                     (window.electronAPI as any).mouseMove(targetX, targetY);
                 }
                 
                 this.lastMouseUpdate = now;
             }
-        } else if (this.isLaserModeActive) {
-            // Still update laser position even if not open palm, just to keep crosshair responsive?
-            // Optional, but keeping it inside isOpenPalm makes the Laser require an open palm to aim, which is safe.
-            this.isMouseModeActive = false;
         } else {
             this.isMouseModeActive = false;
         }
 
-        if (state.swipeDirection && !this.isMouseModeActive && !this.isPinchHeld) {
+        // Suppress OS Swipes if Laser Mode is active
+        if (state.swipeDirection && !this.isMouseModeActive && !this.isPinchHeld && !this.isLaserModeActive) {
             const swipeBase = this.mapElements['map-swipe'].value;
             if (swipeBase === 'SPACES') {
                 if (state.swipeDirection === 'left') action = 'SPACE_LEFT';
@@ -785,7 +790,11 @@ class AetherCommandRenderer {
         }
         else if (state.isPinching) {
             action = this.mapElements['map-pinch'].value;
-            if (action === 'MOUSE_MODE' || this.isMouseModeActive) {
+            // Intercept mouse actions if laser mode is ON
+            if (this.isLaserModeActive) {
+                this.isPinchHeld = true; // Mark as held to prevent jitter
+            }
+            else if (action === 'MOUSE_MODE' || this.isMouseModeActive) {
                 this.highlightStatus('status-pinch');
                 if (!this.isPinchHeld) {
                     (window.electronAPI as any).mouseDown();

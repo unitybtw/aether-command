@@ -133,10 +133,10 @@ const createHudWindow = () => {
     const { width, height } = primaryDisplay.workAreaSize;
 
     hudWindow = new BrowserWindow({
-        width: 300,
-        height: 120,
-        x: Math.floor(width / 2) - 150,
-        y: Math.floor(height / 2) - 60,
+        width: 500,
+        height: 350,
+        x: Math.floor(width / 2) - 250,
+        y: Math.floor(height / 2) - 175,
         transparent: true,
         frame: false,
         alwaysOnTop: true,

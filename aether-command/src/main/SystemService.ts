@@ -1,8 +1,42 @@
 import { exec, spawn, ChildProcess } from 'child_process';
 
 export class SystemService {
+    private isWindows = process.platform === 'win32';
+    private mouseDaemon: ChildProcess | null = null;
+    private daemonSpawnLock: number = 0;
+    private lastFrontmostApp: string = '';
+
     public execute(action: string) {
         console.log(`[SystemService] Executing action: ${action}`);
+        if (this.isWindows) {
+            this.executeWindows(action);
+        } else {
+            this.executeMac(action);
+        }
+    }
+
+    private executeWindows(action: string) {
+        switch (action) {
+            case 'PLAY_PAUSE': this.runCommand('powershell -c "(New-Object -ComObject Shell.Application).KeyPress(179)"'); break;
+            case 'VOLUME_UP': this.runCommand('powershell -c "(New-Object -ComObject Shell.Application).KeyPress(175)"'); break;
+            case 'VOLUME_DOWN': this.runCommand('powershell -c "(New-Object -ComObject Shell.Application).KeyPress(174)"'); break;
+            case 'MUTE_TOGGLE': this.runCommand('powershell -c "(New-Object -ComObject Shell.Application).KeyPress(173)"'); break;
+            case 'NEXT_TRACK': this.runCommand('powershell -c "(New-Object -ComObject Shell.Application).KeyPress(176)"'); break;
+            case 'PREV_TRACK': this.runCommand('powershell -c "(New-Object -ComObject Shell.Application).KeyPress(177)"'); break;
+            case 'SHOW_DESKTOP': this.runCommand('powershell -c "(New-Object -ComObject Shell.Application).MinimizeAll()"'); break;
+            case 'LOCK_SCREEN': this.runCommand('rundll32.exe user32.dll,LockWorkStation'); break;
+            case 'LAUNCH_CHROME': this.runCommand('start chrome'); break;
+            case 'LAUNCH_SPOTIFY': this.runCommand('start spotify'); break;
+            case 'LAUNCH_VSCODE': this.runCommand('code .'); break;
+            case 'LAUNCH_TERMINAL': this.runCommand('start wt'); break;
+            default:
+                if (action.startsWith('SCRIPT:')) {
+                    this.runCommand(`powershell -c "${action.substring(7)}"`);
+                }
+        }
+    }
+
+    private executeMac(action: string) {
         switch (action) {
             case 'PLAY_PAUSE':
                 this.runAppleScript('if application "Spotify" is running then\ntell application "Spotify" to playpause\nelse if application "Music" is running then\ntell application "Music" to playpause\nend if');
@@ -11,7 +45,7 @@ export class SystemService {
                 this.runAppleScript('set volume output muted not (output muted of (get volume settings))');
                 break;
             case 'MISSION_CONTROL':
-                this.runAppleScript('tell application "System Events" to key code 160'); // Mission Control
+                this.runAppleScript('tell application "System Events" to key code 160');
                 break;
             case 'SPACE_LEFT':
                 this.runAppleScript('tell application "System Events" to key code 123 using control down');
@@ -53,7 +87,7 @@ export class SystemService {
                 this.runCommand('open -a Launchpad');
                 break;
             case 'SHOW_DESKTOP':
-                this.runAppleScript('tell application "System Events" to key code 103'); // F11 Show Desktop
+                this.runAppleScript('tell application "System Events" to key code 103');
                 break;
             case 'LAUNCH_CHROME':
                 this.runCommand('open -a "Google Chrome"');
@@ -79,22 +113,18 @@ export class SystemService {
             default:
                 if (action.startsWith('SCRIPT:')) {
                     this.runAppleScript(action.substring(7));
-                } else {
-                    console.warn(`[SystemService] Unknown or unmapped action: ${action}`);
                 }
         }
     }
 
-    private mouseDaemon: ChildProcess | null = null;
-    private daemonSpawnLock: number = 0;
-
     private getMouseDaemon(): ChildProcess | null {
         if (!this.mouseDaemon) {
             const now = Date.now();
-            if (now - this.daemonSpawnLock < 5000) return null; // Prevent spawn loops (5 sec cooldown)
+            if (now - this.daemonSpawnLock < 5000) return null;
             this.daemonSpawnLock = now;
 
-            const binPath = require('path').join(__dirname, 'mouse_ctrl');
+            const binName = this.isWindows ? 'mouse_ctrl.exe' : 'mouse_ctrl';
+            const binPath = require('path').join(__dirname, binName);
             try {
                 this.mouseDaemon = spawn(binPath);
                 this.mouseDaemon.on('exit', () => { this.mouseDaemon = null; });
@@ -111,7 +141,6 @@ export class SystemService {
     }
 
     public updateMousePosition(x: number, y: number) {
-        // High performance native C module for zero-latency cursor movement via stdin daemon
         const daemon = this.getMouseDaemon();
         if (daemon && daemon.stdin) daemon.stdin.write(`${Math.round(x)} ${Math.round(y)}\n`);
     }
@@ -155,6 +184,7 @@ export class SystemService {
     }
 
     public async getMediaInfo(): Promise<string | null> {
+        if (this.isWindows) return null; // Windows placeholder
         const script = `
             try
                 if application "Spotify" is running then
@@ -174,6 +204,7 @@ export class SystemService {
     }
 
     public async getVolumeInfo(): Promise<string | null> {
+        if (this.isWindows) return null; // Windows placeholder
         const script = `
             try
                 set vol to output volume of (get volume settings)
@@ -198,25 +229,33 @@ export class SystemService {
         exec(cmd, (err, stdout, stderr) => {
             if (err) {
                 console.error(`[SystemService] Command Error [${cmd}]:`, err.message);
-            } else {
-                console.log(`[SystemService] Command Success: ${cmd}`);
             }
         });
     }
 
-    private lastFrontmostApp: string = '';
     public startAppMonitor(onAppChange: (appName: string) => void) {
-        // Poll every 1.5 seconds to detect which application the user is actively focused on
         setInterval(() => {
-            exec(`osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`, (error, stdout) => {
-                if (!error && stdout) {
-                    const appName = stdout.trim();
-                    if (appName && appName !== this.lastFrontmostApp) {
-                        this.lastFrontmostApp = appName;
-                        onAppChange(appName);
+            if (this.isWindows) {
+                exec('powershell -c "(Get-Process | Where-Object { $_.MainWindowHandle -ne 0 } | Sort-Object -Property LastAccessTime -Descending | Select-Object -First 1).Name"', (error, stdout) => {
+                    if (!error && stdout) {
+                        const appName = stdout.trim();
+                        if (appName && appName !== this.lastFrontmostApp) {
+                            this.lastFrontmostApp = appName;
+                            onAppChange(appName);
+                        }
                     }
-                }
-            });
+                });
+            } else {
+                exec(`osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`, (error, stdout) => {
+                    if (!error && stdout) {
+                        const appName = stdout.trim();
+                        if (appName && appName !== this.lastFrontmostApp) {
+                            this.lastFrontmostApp = appName;
+                            onAppChange(appName);
+                        }
+                    }
+                });
+            }
         }, 1500);
     }
 }

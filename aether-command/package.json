@@ -4,10 +4,12 @@
   "description": "Mac Menu Bar Gesture Controller",
   "main": "dist/main/main.js",
   "scripts": {
-    "start": "npm run build && env -u ELECTRON_RUN_AS_NODE electron .",
-    "build": "tsc && gcc -O3 -framework ApplicationServices -framework CoreGraphics src/main/mouse_ctrl.c -o dist/main/mouse_ctrl && esbuild src/renderer/renderer.ts --bundle --minify --outfile=dist/renderer/renderer.js --platform=browser --format=iife",
+    "start": "npm run build && electron .",
+    "build": "tsc && npm run build:c && esbuild src/renderer/renderer.ts --bundle --minify --outfile=dist/renderer/renderer.js --platform=browser --format=iife",
+    "build:c": "node -e \"const p = process.platform; const fs = require('fs'); if (!fs.existsSync('dist/main')) fs.mkdirSync('dist/main', {recursive:true}); if (p==='darwin') require('child_process').execSync('gcc -O3 -framework ApplicationServices -framework CoreGraphics src/main/mouse_ctrl.c -o dist/main/mouse_ctrl'); else if (p==='win32') require('child_process').execSync('gcc -O3 src/main/mouse_ctrl_win.c -o dist/main/mouse_ctrl.exe');\"",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "release": "electron-builder -mw"
   },
   "build": {
     "appId": "com.aether.command",
@@ -17,9 +19,12 @@
       "icon": "src/assets/icon.png",
       "extendInfo": {
         "NSCameraUsageDescription": "Aether-Command needs camera access to track your hand gestures.",
-        "NSMicrophoneUsageDescription": "Aether-Command needs microphone access for complete media control compatibility.",
-        "NSAppleEventsUsageDescription": "Aether-Command needs to control other apps to perform actions like Play/Pause and Mute."
+        "NSAppleEventsUsageDescription": "Aether-Command needs to control other apps to perform actions."
       }
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "src/assets/icon.png"
     },
     "files": [
       "dist/**/*",

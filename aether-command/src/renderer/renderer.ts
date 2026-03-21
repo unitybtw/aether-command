@@ -465,8 +465,8 @@ class AetherCommandRenderer {
                 const profile = profileSelect.value;
                 const PROFILES: Record<string, any> = {
                     default: { pinch: 'PLAY_PAUSE', fist: 'MUTE_TOGGLE', palm: 'MISSION_CONTROL', peace: 'SHOW_DESKTOP', swipe: 'SPACES' },
-                    media: { pinch: 'PLAY_PAUSE', fist: 'MUTE_TOGGLE', palm: 'VOLUME_UP', peace: 'NEXT_TRACK', swipe: 'PREV_TRACK' },
-                    coding: { pinch: 'LAUNCH_VSCODE', fist: 'LAUNCH_TERMINAL', palm: 'LAUNCH_CHROME', peace: 'LOCK_SCREEN', swipe: 'SPACES' }
+                    media: { pinch: 'PLAY_PAUSE', fist: 'MUTE_TOGGLE', palm: 'MOUSE_MODE', peace: 'NEXT_TRACK', swipe: 'MEDIA' },
+                    coding: { pinch: 'LAUNCH_VSCODE', fist: 'LAUNCH_TERMINAL', palm: 'MOUSE_MODE', peace: 'LOCK_SCREEN', swipe: 'BROWSER' }
                 };
                 const config = PROFILES[profile];
                 if (config) {
@@ -819,7 +819,22 @@ class AetherCommandRenderer {
         else if (state.isPeace) action = this.mapElements['map-peace'].value;
         else if (state.swipeDirection) {
             const swipeBase = this.mapElements['map-swipe'].value;
-            action = swipeBase === 'SPACES' ? (state.swipeDirection === 'left' ? 'SPACE_LEFT' : 'SPACE_RIGHT') : swipeBase;
+            if (swipeBase === 'SPACES') {
+                if (state.swipeDirection === 'left') action = 'SPACE_LEFT';
+                else if (state.swipeDirection === 'right') action = 'SPACE_RIGHT';
+                else if (state.swipeDirection === 'up') action = 'MISSION_CONTROL';
+                else if (state.swipeDirection === 'down') action = 'SHOW_DESKTOP';
+            } else if (swipeBase === 'MEDIA') {
+                if (state.swipeDirection === 'left') action = 'PREV_TRACK';
+                else if (state.swipeDirection === 'right') action = 'NEXT_TRACK';
+                else if (state.swipeDirection === 'up') action = 'VOLUME_UP';
+                else if (state.swipeDirection === 'down') action = 'VOLUME_DOWN';
+            } else if (swipeBase === 'BROWSER') {
+                if (state.swipeDirection === 'left') action = 'BROWSER_BACK';
+                else if (state.swipeDirection === 'right') action = 'BROWSER_FORWARD';
+                else if (state.swipeDirection === 'up') action = 'BROWSER_TAB_NEXT';
+                else if (state.swipeDirection === 'down') action = 'BROWSER_TAB_PREV';
+            }
         }
 
         if (!state.isPinching && this.isPinchHeld) {

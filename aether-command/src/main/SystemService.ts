@@ -64,6 +64,18 @@ export class SystemService {
             case 'LAUNCH_TERMINAL':
                 this.runCommand('open -a Terminal');
                 break;
+            case 'BROWSER_BACK':
+                this.runAppleScript('tell application "System Events" to key code 123 using command down');
+                break;
+            case 'BROWSER_FORWARD':
+                this.runAppleScript('tell application "System Events" to key code 124 using command down');
+                break;
+            case 'BROWSER_TAB_NEXT':
+                this.runAppleScript('tell application "System Events" to key code 48 using control down');
+                break;
+            case 'BROWSER_TAB_PREV':
+                this.runAppleScript('tell application "System Events" to key code 48 using {control down, shift down}');
+                break;
             default:
                 if (action.startsWith('SCRIPT:')) {
                     this.runAppleScript(action.substring(7));

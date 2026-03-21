@@ -253,10 +253,6 @@ ipcMain.on('renderer-log', (_event, level, msg) => {
 });
 
 ipcMain.on('gesture-action', (_event, action) => {
-    if (!isKeyHeld) {
-        console.log('[Main] Gesture blocked: Activation key NOT held.');
-        return;
-    }
     if (hudWindow) {
         if (!hudWindow.isVisible()) hudWindow.showInactive();
         hudWindow.webContents.send('show-hud', action);

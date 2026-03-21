@@ -796,6 +796,7 @@ class AetherCommandRenderer {
 
     private triggerAction(action: string, continuous = false) {
         if (this.gestureLocked && !continuous) return;
+        if (!this.isActivated) return; // Completely enforce Arm/Disarm lock for Shortcuts
 
         const now = Date.now();
         const lastTime = this.lastActionTimes.get(action) || 0;

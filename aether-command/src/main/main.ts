@@ -42,6 +42,11 @@ const checkPermissions = async () => {
         console.log(`[Main] Camera Access Result: ${granted}`);
     }
 
+    // Crucial: Check for Accessibility Privileges for Mouse/Keyboard Event posting
+    // Without this, the C-Daemon will flood syslogs and bloat the CPU if it tries to move the mouse
+    const isAccessibilityGranted = systemPreferences.isTrustedAccessibilityClient(true);
+    console.log(`[Main] Accessibility Privileges: ${isAccessibilityGranted ? 'Granted' : 'Denied/Prompted'}`);
+
     // Explicitly handle renderer permission requests
     session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
         if (permission === 'media') {

@@ -74,16 +74,26 @@ export class SystemService {
     }
 
     private mouseDaemon: ChildProcess | null = null;
+    private daemonSpawnLock: number = 0;
 
-    private getMouseDaemon(): ChildProcess {
+    private getMouseDaemon(): ChildProcess | null {
         if (!this.mouseDaemon) {
+            const now = Date.now();
+            if (now - this.daemonSpawnLock < 5000) return null; // Prevent spawn loops (5 sec cooldown)
+            this.daemonSpawnLock = now;
+
             const binPath = require('path').join(__dirname, 'mouse_ctrl');
-            this.mouseDaemon = spawn(binPath);
-            this.mouseDaemon.on('exit', () => { this.mouseDaemon = null; });
-            this.mouseDaemon.on('error', (err) => {
-                console.error('[SystemService] Mouse daemon error:', err);
+            try {
+                this.mouseDaemon = spawn(binPath);
+                this.mouseDaemon.on('exit', () => { this.mouseDaemon = null; });
+                this.mouseDaemon.on('error', (err) => {
+                    console.error('[SystemService] Mouse daemon error:', err);
+                    this.mouseDaemon = null;
+                });
+            } catch (e) {
+                console.error('[SystemService] Failed to spawn mouse daemon:', e);
                 this.mouseDaemon = null;
-            });
+            }
         }
         return this.mouseDaemon;
     }
@@ -91,13 +101,13 @@ export class SystemService {
     public updateMousePosition(x: number, y: number) {
         // High performance native C module for zero-latency cursor movement via stdin daemon
         const daemon = this.getMouseDaemon();
-        if (daemon.stdin) daemon.stdin.write(`${Math.round(x)} ${Math.round(y)}\n`);
+        if (daemon && daemon.stdin) daemon.stdin.write(`${Math.round(x)} ${Math.round(y)}\n`);
     }
 
     public clickMouse(button: 'left' | 'right' = 'left') {
         // High performance native C module for zero-latency clicks via stdin daemon
         const daemon = this.getMouseDaemon();
-        if (daemon.stdin) daemon.stdin.write(`click\n`);
+        if (daemon && daemon.stdin) daemon.stdin.write(`click\n`);
     }
 
     private runAppleScript(script: string, silent = false) {

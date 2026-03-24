@@ -44,7 +44,12 @@ export class GestureEngine {
         const isRingFolded = this.calculateDistance(ringTip, wrist) < this.calculateDistance(ringPip, wrist);
         const isPinkyFolded = this.calculateDistance(pinkyTip, wrist) < this.calculateDistance(pinkyPip, wrist);
 
-        const isFist = isIndexFolded && isMiddleFolded && isRingFolded && isPinkyFolded;
+        const foldedCount = (isIndexFolded ? 1 : 0) + (isMiddleFolded ? 1 : 0) + (isRingFolded ? 1 : 0) + (isPinkyFolded ? 1 : 0);
+        
+        // Lenient Fist: If 3 or more fingers are folded, it's a fist
+        const isFist = foldedCount >= 3;
+        
+        // Refined Peace: Index & Middle up, others down
         const isPeace = !isIndexFolded && !isMiddleFolded && isRingFolded && isPinkyFolded && !isFist;
 
         // 2. Pinch Detection

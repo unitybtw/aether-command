@@ -121,6 +121,9 @@ class AetherCommandRenderer {
     private stabilityCanvas: HTMLCanvasElement;
     private stabilityCtx: CanvasRenderingContext2D;
     private stabilityData = new Float32Array(50);
+    private neuralCanvas: HTMLCanvasElement;
+    private neuralCtx: CanvasRenderingContext2D;
+    private neuralData = new Float32Array(50);
     private lastFps: number = 0;
     private gestureLocked: boolean = false;
     private readonly GLOBAL_DEBOUNCE_MS = 800;
@@ -150,6 +153,8 @@ class AetherCommandRenderer {
     private lastY: number = 0;
     private pinchStartTime: number = 0;
     private lastDetectedLandmarks: any[] | null = null;
+    private lastWristPos = { x: 0.5, y: 0.5 };
+    private lastPointerPos = { x: 0.5, y: 0.5 };
 
     constructor() {
         this.video = document.getElementById('webcam') as HTMLVideoElement;
@@ -157,6 +162,8 @@ class AetherCommandRenderer {
         this.ctx = this.canvas.getContext('2d')!;
         this.stabilityCanvas = document.getElementById('stability-canvas') as HTMLCanvasElement;
         this.stabilityCtx = this.stabilityCanvas.getContext('2d')!;
+        this.neuralCanvas = document.getElementById('neural-pulse-graph') as HTMLCanvasElement;
+        this.neuralCtx = this.neuralCanvas.getContext('2d')!;
         this.statusEl = document.getElementById('status-overlay')!;
         this.logEl = document.getElementById('log')!;
         
@@ -254,6 +261,7 @@ class AetherCommandRenderer {
         if (!isHandFound) {
             qualityText.innerText = 'SEARCHING...';
             qualityText.style.color = 'rgba(255,255,255,0.4)';
+            this.drawNeuralWave(0);
             return;
         }
 
@@ -267,6 +275,36 @@ class AetherCommandRenderer {
             qualityText.innerText = 'EXCELLENT';
             qualityText.style.color = '#00ffcc';
         }
+
+        this.drawNeuralWave(confidence);
+    }
+
+    private drawNeuralWave(confidence: number) {
+        if (!this.neuralCtx) return;
+        const ctx = this.neuralCtx;
+        const w = this.neuralCanvas.width;
+        const h = this.neuralCanvas.height;
+
+        this.neuralData.copyWithin(0, 1);
+        this.neuralData[49] = confidence;
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.beginPath();
+        ctx.strokeStyle = '#00e5ff';
+        ctx.lineWidth = 1.8;
+        
+        for (let i = 0; i < 50; i++) {
+            const x = (i / 49) * w;
+            const y = h - (this.neuralData[i] * (h * 0.8) + 2);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        ctx.lineTo(w, h);
+        ctx.lineTo(0, h);
+        ctx.fillStyle = 'rgba(0, 229, 255, 0.15)';
+        ctx.fill();
     }
 
     private drawStabilityGraph(stability: number) {
@@ -814,6 +852,10 @@ class AetherCommandRenderer {
 
                         const state = this.gesture.process(smoothed, this.customGestures);
                         
+                        // Update Spatial Feedback State
+                        this.lastWristPos = state.lastWristPos;
+                        this.lastPointerPos = state.pointerPos;
+                        
                         // New: Always handle mouse move if palm is open, even if not toggled "Activated"
                         // This allows mouse control to be independent of the safety toggle if desired,
                         // or we can keep it inside if (this.isActivated). Let's move it OUT for better UX.
@@ -1182,12 +1224,13 @@ class AetherCommandRenderer {
                 setTimeout(() => { this.gestureLocked = false; }, 500);
             }
 
-            this.vfx.createBurst(this.canvas.width / 2, this.canvas.height / 2, 30);
+            // Spatial VFX Explosion at Pointer Position
+            const wx = (1 - this.lastPointerPos.x) * this.canvas.width;
+            const wy = this.lastPointerPos.y * this.canvas.height;
+            this.vfx.createBurst(wx, wy, 40);
             
             // Spatial Feedback
-            const hx = this.gesture['lastWristPos']?.x || 0.5;
-            const hy = this.gesture['lastWristPos']?.y || 0.5;
-            this.audio.playSuccess(hx, hy);
+            this.audio.playSuccess(this.lastWristPos.x, this.lastWristPos.y);
             
             window.electronAPI.triggerGestureAction(action);
             this.lastActionTimes.set(action, now);

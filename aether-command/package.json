@@ -6,7 +6,7 @@
   "scripts": {
     "start": "npm run build && electron .",
     "build": "tsc && npm run build:c && esbuild src/renderer/renderer.ts --bundle --minify --outfile=dist/renderer/renderer.js --platform=browser --format=iife",
-    "build:c": "node -e \"const p = process.platform; const fs = require('fs'); if (!fs.existsSync('dist/main')) fs.mkdirSync('dist/main', {recursive:true}); if (p==='darwin') require('child_process').execSync('gcc -O3 -framework ApplicationServices -framework CoreGraphics src/main/mouse_ctrl.c -o dist/main/mouse_ctrl'); else if (p==='win32') require('child_process').execSync('gcc -O3 src/main/mouse_ctrl_win.c -o dist/main/mouse_ctrl.exe');\"",
+    "build:c": "node -e \"const p = process.platform; const fs = require('fs'); if (!fs.existsSync('dist/main')) fs.mkdirSync('dist/main', {recursive:true}); if (p==='darwin') { if (!fs.existsSync('dist/main/mouse_ctrl')) require('child_process').execSync('gcc -O3 -framework ApplicationServices -framework CoreGraphics src/main/mouse_ctrl.c -o dist/main/mouse_ctrl'); } else if (p==='win32') { if (!fs.existsSync('dist/main/mouse_ctrl.exe')) require('child_process').execSync('gcc -O3 src/main/mouse_ctrl_win.c -o dist/main/mouse_ctrl.exe'); }\"",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "release": "electron-builder -mw"

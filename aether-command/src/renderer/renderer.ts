@@ -728,6 +728,7 @@ class AetherCommandRenderer {
                     const isRequestedHand = (confidence > 0.35);
                     
                     if (isRequestedHand) {
+                        this.wakeUp(); // Reset inactivity timer on any valid hand presence
                         window.electronAPI.setTrackingStatus(true);
                         
                         // Predictive Smoothing

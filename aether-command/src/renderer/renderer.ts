@@ -956,11 +956,11 @@ class AetherCommandRenderer {
             if (now - this.lastMouseUpdate > 16) { // 60Hz update rate to save resources
                 // Calculate Depth-Based Speed Multiplier (Z is negative closer to camera)
                 // -0.8 to -0.2 range approximately
-                const zNorm = Math.min(-0.2, Math.max(-1.0, state.lastWristPos.z));
+                const zNorm = Math.min(-0.2, Math.max(-1.0, state.pointerPos.z));
                 const depthScale = 1.0 + (Math.abs(zNorm) - 0.2) * 1.5; // Closer hand = Faster speed
                 
-                let normX = 1 - state.lastWristPos.x;
-                let normY = state.lastWristPos.y;
+                let normX = 1 - state.pointerPos.x;
+                let normY = state.pointerPos.y;
 
                 // Apply Sensitivity with Depth Scaling
                 normX = 0.5 + (normX - 0.5) * this.cursorSpeed * depthScale;
@@ -1008,8 +1008,8 @@ class AetherCommandRenderer {
             if (this.isLaserModeActive) { // Fallback to track wrist even without open palm
                 const now = performance.now();
                 if (now - this.lastMouseUpdate > 16) {
-                    let normX = 1 - state.lastWristPos.x;
-                    let normY = state.lastWristPos.y;
+                    let normX = 1 - state.pointerPos.x;
+                    let normY = state.pointerPos.y;
                     normX = 0.5 + (normX - 0.5) * this.cursorSpeed;
                     normY = 0.5 + (normY - 0.5) * this.cursorSpeed;
                     normX = Math.max(0, Math.min(1, normX));

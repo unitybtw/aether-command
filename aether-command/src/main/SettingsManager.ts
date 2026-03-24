@@ -18,6 +18,8 @@ export interface AppSettings {
     leftHandMode: boolean;
     theme: 'cyberpunk' | 'minimal' | 'emerald';
     activationKey: 'Command' | 'Option' | 'Control';
+    extraVfx: boolean;
+    batterySaver: boolean;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -35,7 +37,9 @@ const DEFAULT_SETTINGS: AppSettings = {
     requireKey: false,
     leftHandMode: false,
     theme: 'cyberpunk',
-    activationKey: 'Option'
+    activationKey: 'Option',
+    extraVfx: true,
+    batterySaver: false
 };
 
 export class SettingsManager {

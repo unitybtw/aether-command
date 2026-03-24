@@ -369,7 +369,9 @@ class AetherCommandRenderer {
             'setting-sensitivity': settings.sensitivity,
             'setting-theme': settings.theme,
             'setting-hand-preference': settings.leftHandMode,
-            'setting-cursor-speed': settings.cursorSpeed
+            'setting-cursor-speed': settings.cursorSpeed,
+            'setting-vfx-extra': settings.extraVfx,
+            'setting-battery-saver': settings.batterySaver
         };
 
         for (const [id, value] of Object.entries(uiMap)) {
@@ -499,31 +501,25 @@ class AetherCommandRenderer {
     }
 
     private handleSmartProfileSwitch(appName: string) {
-        if (!this.uiElements['setting-profile'] && !document.getElementById('setting-profile')) return;
-        const select = (this.uiElements['setting-profile'] || document.getElementById('setting-profile')) as HTMLSelectElement;
-        
-        const mediaApps = ['Spotify', 'Music', 'IINA', 'VLC', 'QuickTime Player'];
-        const devApps = ['Code', 'Cursor', 'Terminal', 'iTerm2', 'Xcode', 'Warp', 'Android Studio'];
-        
+        const profileSelect = document.getElementById('setting-profile') as HTMLSelectElement;
+        if (!profileSelect) return;
+
+        const app = appName.toLowerCase();
         let targetProfile = 'default';
-        if (mediaApps.includes(appName)) targetProfile = 'media';
-        else if (devApps.includes(appName)) targetProfile = 'coding';
-        
-        if (select.value !== targetProfile) {
-            select.value = targetProfile;
-            select.dispatchEvent(new Event('change'));
-            this.log(`Smart Switch: Profile changed to ${targetProfile.toUpperCase()} for [${appName}]`);
+
+        if (app.includes('safari') || app.includes('chrome') || app.includes('arc') || app.includes('browser')) {
+             targetProfile = 'browser'; 
+        } else if (app.includes('music') || app.includes('spotify') || app.includes('quicktime') || app.includes('vlc')) {
+            targetProfile = 'media';
+        } else if (app.includes('code') || app.includes('terminal') || app.includes('iterm') || app.includes('xcode')) {
+            targetProfile = 'coding';
+        }
+
+        if (profileSelect.value !== targetProfile) {
+            profileSelect.value = targetProfile;
+            profileSelect.dispatchEvent(new Event('change'));
+            this.log(`Smart Profile: Auto-switched to ${targetProfile.toUpperCase()} for ${appName}`);
             this.audio.playSuccess();
-            
-            if ((window as any).electronAPI && (window as any).electronAPI.onShowHud) {
-                const actionIcon = targetProfile === 'media' ? 'VOLUME_UP' : (targetProfile === 'coding' ? 'LAUNCH_VSCODE' : 'SHOW_DESKTOP');
-                window.dispatchEvent(new CustomEvent('show-local-hud', { 
-                    detail: { 
-                        action: actionIcon, 
-                        subtitle: `Profile: ${targetProfile.toUpperCase()} [${appName}]` 
-                    } 
-                }));
-            }
         }
     }
 
@@ -564,11 +560,17 @@ class AetherCommandRenderer {
         }
     }
 
-    private async initCamera(): Promise<boolean> {
+    private async initCamera(highRes = false): Promise<boolean> {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { width: 320, height: 240, facingMode: "user" } 
-            });
+            const constraints = {
+                video: { 
+                    width: highRes ? 640 : 320, 
+                    height: highRes ? 480 : 240, 
+                    facingMode: "user",
+                    frameRate: { ideal: 60 }
+                } 
+            };
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
             this.video.srcObject = stream;
             return new Promise((resolve) => {
                 this.video.onloadeddata = () => { this.video.play(); resolve(true); };
@@ -601,15 +603,18 @@ class AetherCommandRenderer {
         this.vfx.update();
 
         try {
-            let skipRate = 1;
-            // @ts-ignore
-            if ((window as any).isBatterySaverEnabled) skipRate = 2; // 30FPS base
-            if (!this.isVisible) skipRate = 2; // 15FPS in background (since loop is 30fps)
+            let skipRate = 1; // Forced to 1 (No skipping) for debugging
+            // if (!this.isVisible) skipRate = 2; 
             
             if (this.frameCount % skipRate === 0) {
-                // Adaptive Light Normalization - Occurs every 2 seconds roughly
-                if (this.frameCount % 120 === 0) {
+                // Brightness check
+                if (this.frameCount % 60 === 0) {
                     this.estimateBrightness();
+                    // If extremely dark, try to bump res once
+                    if (this.currentBrightness < 20 && this.video.videoWidth < 640) {
+                        this.log("System: Low light detected. Upscaling sensor resolution...");
+                        this.initCamera(true);
+                    }
                 }
 
                 const result = this.tracker.detect(this.video, performance.now());
@@ -669,9 +674,16 @@ class AetherCommandRenderer {
                 } else {
                     this.gesture.reset();
                     this.updateQualityUI(0, false);
+                    
+                    // Engine Heartbeat: If total silence for 5 seconds, reload tracker
+                    if (this.lastHandDetectionTime !== 0 && Date.now() - this.lastHandDetectionTime > 5000) {
+                        this.log("System: Heartbeat lost. Resetting detection engine...");
+                        this.tracker.initialize(); 
+                        this.lastHandDetectionTime = Date.now(); // reset timer
+                    }
+
                     if (Date.now() - this.lastHandDetectionTime > 2000 && this.lastHandDetectionTime !== 0) {
                         window.electronAPI.setTrackingStatus(false);
-                        this.lastHandDetectionTime = 0;
                         this.updateGestureUI(null);
                     }
                 }

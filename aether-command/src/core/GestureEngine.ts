@@ -88,7 +88,11 @@ export class GestureEngine {
             isPeace,
             pinchStartPos,
             lastWristPos: { x: wrist.x, y: wrist.y },
-            pointerPos: { x: indexTip.x, y: indexTip.y - 0.25, z: indexTip.z }, // Offset upwards so resting arm maps to center-screen
+            pointerPos: { 
+                x: landmarks[5].x, 
+                y: landmarks[5].y - 0.25, 
+                z: landmarks[5].z 
+            }, // Using Index MCP (Knuckle) for rock-solid stability during clicks
             depth: (wrist.z + 0.5) * 2, // Normalized 0-1 depth
             matchedCustomGesture: this.matchCustomGesture(landmarks, customGestures, handScale)
         };

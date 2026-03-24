@@ -148,6 +148,7 @@ class AetherCommandRenderer {
     private lastLaserAction: 'draw' | 'move' | 'clear' = 'move';
     private lastX: number = 0;
     private lastY: number = 0;
+    private pinchStartTime: number = 0;
     private lastDetectedLandmarks: any[] | null = null;
 
     constructor() {
@@ -1067,34 +1068,39 @@ class AetherCommandRenderer {
             }
             else if (action === 'MOUSE_MODE' || this.isMouseModeActive) {
                 this.highlightStatus('status-pinch');
+                const now = performance.now();
+                
                 if (!this.isPinchHeld) {
                     (window.electronAPI as any).mouseDown();
                     this.isPinchHeld = true;
-                    this.log("Mouse: Drag Start (Down)");
+                    this.pinchStartTime = now;
+                    this.log("Mouse: Click/Drag Initialized");
                 } else {
-                    const now = performance.now();
-                    if (now - this.lastMouseUpdate > 16) {
-                        const zNorm = Math.min(-0.2, Math.max(-1.0, state.pointerPos.z));
-                        const depthScale = 1.0 + (Math.abs(zNorm) - 0.2) * 1.5;
-                        
-                        let normX = 1 - state.pointerPos.x;
-                        let normY = state.pointerPos.y;
-                        normX = 0.5 + (normX - 0.5) * this.cursorSpeed * depthScale;
-                        normY = 0.5 + (normY - 0.5) * this.cursorSpeed * depthScale;
-                        normX = Math.max(0, Math.min(1, normX));
-                        normY = Math.max(0, Math.min(1, normY));
+                    // Clicking Stability: Wait 200ms before allowing cursor to MOVE (Drag)
+                    // This ensures the OS treats it as a CLICK unless the user holds & moves
+                    if (now - this.pinchStartTime > 200) {
+                        if (now - this.lastMouseUpdate > 16) {
+                            const zNorm = Math.min(-0.2, Math.max(-1.0, state.pointerPos.z));
+                            const depthScale = 1.0 + (Math.abs(zNorm) - 0.2) * 1.5;
+                            
+                            let normX = 1 - state.pointerPos.x;
+                            let normY = state.pointerPos.y;
+                            normX = 0.5 + (normX - 0.5) * this.cursorSpeed * depthScale;
+                            normY = 0.5 + (normY - 0.5) * this.cursorSpeed * depthScale;
+                            normX = Math.max(0, Math.min(1, normX));
+                            normY = Math.max(0, Math.min(1, normY));
 
-                        const targetX = normX * this.screenWidth;
-                        const targetY = normY * this.screenHeight;
+                            const targetX = normX * this.screenWidth;
+                            const targetY = normY * this.screenHeight;
 
-                        // Neural Deadzone: Distinguish intentional DRAG vs slight tremor during CLICK
-                        if (Math.abs(targetX - this.lastX) > 4 || Math.abs(targetY - this.lastY) > 4) {
-                            (window.electronAPI as any).mouseDrag(targetX, targetY);
-                            this.lastX = targetX;
-                            this.lastY = targetY;
+                            // Neural Deadzone (8px during pinch to prevent clicking slippage)
+                            if (Math.abs(targetX - this.lastX) > 8 || Math.abs(targetY - this.lastY) > 8) {
+                                (window.electronAPI as any).mouseDrag(targetX, targetY);
+                                this.lastX = targetX;
+                                this.lastY = targetY;
+                            }
+                            this.lastMouseUpdate = now;
                         }
-
-                        this.lastMouseUpdate = now;
                     }
                 }
                 return;

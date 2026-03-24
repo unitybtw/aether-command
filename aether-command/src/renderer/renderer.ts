@@ -667,9 +667,8 @@ class AetherCommandRenderer {
                 this.isSuspended = true;
                 document.body.classList.add('battery-saver');
                 window.electronAPI.setTrackingStatus(false);
+                this.log('System: Entering Eco-Mode. Scanning for hands at lower frequency.');
             }
-            requestAnimationFrame(() => this.loop());
-            return;
         }
 
         const cw = this.canvas.clientWidth;
@@ -683,7 +682,7 @@ class AetherCommandRenderer {
         this.vfx.update();
 
         try {
-            let skipRate = 1; // Forced to 1 (No skipping) for debugging
+            let skipRate = this.isSuspended ? 4 : 1; // 15 FPS if suspended, 60 FPS normal
             // if (!this.isVisible) skipRate = 2; 
             
             if (this.frameCount % skipRate === 0) {

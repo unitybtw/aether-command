@@ -431,9 +431,16 @@ class AetherCommandRenderer {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', () => {
                 if (id === 'setting-require-key') this.updateActivationUIState((el as HTMLInputElement).checked);
+                if (id === 'setting-camera-source') {
+                    this.log("System: Switching camera source...");
+                    this.initCamera();
+                }
                 this.handleSettingChange();
             });
         });
+
+        // Initialize Camera List
+        this.updateCameraList();
 
         // Log Search
         const search = document.getElementById('log-search') as HTMLInputElement;
@@ -567,7 +574,8 @@ class AetherCommandRenderer {
             leftHandMode: (document.getElementById('setting-hand-preference') as HTMLInputElement).checked,
             batterySaver: (document.getElementById('setting-battery-saver') as HTMLInputElement).checked,
             extraVfx: (document.getElementById('setting-vfx-extra') as HTMLInputElement).checked,
-            cursorSpeed: parseFloat((document.getElementById('setting-cursor-speed') as HTMLInputElement).value) // Added
+            cursorSpeed: parseFloat((document.getElementById('setting-cursor-speed') as HTMLInputElement).value),
+            deviceId: (document.getElementById('setting-camera-source') as HTMLSelectElement)?.value
         };
         this.lerpAmount = settings.smoothing;
         this.smoother.setFactor(settings.smoothing);
@@ -585,9 +593,38 @@ class AetherCommandRenderer {
         }
     }
 
+    private async updateCameraList() {
+        const select = document.getElementById('setting-camera-source') as HTMLSelectElement;
+        if (!select) return;
+
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            
+            select.innerHTML = '';
+            videoDevices.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Camera ${select.length + 1}`;
+                select.appendChild(option);
+            });
+
+            // Restore from settings if available
+            const settings = await window.electronAPI.getSettings();
+            if (settings.deviceId) {
+                select.value = settings.deviceId;
+            }
+        } catch (e) {
+            this.log("System: Failed to enumerate camera devices.");
+        }
+    }
+
     private async initCamera(highRes = false): Promise<boolean> {
         try {
-            const constraints = {
+            const select = document.getElementById('setting-camera-source') as HTMLSelectElement;
+            const deviceId = select?.value;
+
+            const constraints: any = {
                 video: { 
                     width: highRes ? 640 : 320, 
                     height: highRes ? 480 : 240, 
@@ -595,13 +632,31 @@ class AetherCommandRenderer {
                     frameRate: { ideal: 60 }
                 } 
             };
+
+            if (deviceId && deviceId !== 'default') {
+                constraints.video.deviceId = { exact: deviceId };
+            }
+
+            // Stop existing tracks if any
+            if (this.video.srcObject) {
+                const stream = this.video.srcObject as MediaStream;
+                stream.getTracks().forEach(track => track.stop());
+            }
+
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             this.video.srcObject = stream;
             return new Promise((resolve) => {
-                this.video.onloadeddata = () => { this.video.play(); resolve(true); };
+                this.video.onloadeddata = () => { 
+                    this.video.play(); 
+                    this.log(`System: Camera initialized ${highRes ? '(HD)' : '(Eco)'}`);
+                    resolve(true); 
+                };
                 this.video.onerror = () => resolve(false);
             });
-        } catch (error) { return false; }
+        } catch (error) { 
+            this.log("System: Camera access denied or device disconnected.");
+            return false; 
+        }
     }
 
     async loop() {

@@ -20,6 +20,7 @@ export interface AppSettings {
     activationKey: 'Command' | 'Option' | 'Control';
     extraVfx: boolean;
     batterySaver: boolean;
+    deviceId?: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {

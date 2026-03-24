@@ -21,6 +21,11 @@ export interface AppSettings {
     extraVfx: boolean;
     batterySaver: boolean;
     deviceId?: string;
+    customGestures: {
+        name: string;
+        action: string;
+        landmarks: {x: number, y: number, z: number}[];
+    }[];
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -40,7 +45,8 @@ const DEFAULT_SETTINGS: AppSettings = {
     theme: 'cyberpunk',
     activationKey: 'Option',
     extraVfx: true,
-    batterySaver: false
+    batterySaver: false,
+    customGestures: []
 };
 
 export class SettingsManager {

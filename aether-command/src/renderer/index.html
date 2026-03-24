@@ -702,6 +702,9 @@
             <button id="export-settings" style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 12px; padding: 12px; font-size: 11px; cursor: pointer; transition: all 0.3s; font-family: inherit; font-weight: 600; letter-spacing: 1px;">EXPORT</button>
             <button id="import-settings" style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 12px; padding: 12px; font-size: 11px; cursor: pointer; transition: all 0.3s; font-family: inherit; font-weight: 600; letter-spacing: 1px;">IMPORT</button>
         </div>
+        <div class="setting-group" style="margin-top: 15px;">
+            <button id="open-gesture-studio" style="width: 100%; background: rgba(162, 0, 255, 0.1); border: 1px solid rgba(162, 0, 255, 0.3); color: #c48cff; border-radius: 12px; padding: 14px; font-size: 11px; cursor: pointer; transition: all 0.3s; font-family: inherit; font-weight: 700; letter-spacing: 2px;">🦾 GESTURE STUDIO (BETA)</button>
+        </div>
         <style>
             #export-settings:hover, #import-settings:hover { background: var(--accent-primary); color: #000; border-color: var(--accent-primary); box-shadow: 0 0 15px var(--accent-primary); }
         </style>
@@ -709,6 +712,29 @@
         <div id="engine-footer" style="margin-top: auto; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.03); opacity: 0.3; font-size: 8px; letter-spacing: 2px; font-weight: 300; pointer-events: none;">
             <span>AETHER COMMAND v2.5.0-PRO</span>
             <span>CORE: MEDIAPIPE-V3</span>
+        </div>
+    </div>
+
+    <!-- Gesture Studio Modal -->
+    <div id="gesture-studio-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(15px); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: rgba(15, 15, 20, 0.95); border: 1px solid rgba(162, 0, 255, 0.3); padding: 30px; border-radius: 24px; width: 400px; color: white; box-shadow: 0 0 40px rgba(162, 0, 255, 0.2);">
+            <h2 style="color: #c48cff; margin-top: 0;">Create Custom Gesture</h2>
+            <p style="font-size: 12px; opacity: 0.7; line-height: 1.5;">Map a unique hand shape to any Terminal or OS Command. The neural engine will memorize the 3D distances between your joints.</p>
+            
+            <div style="margin-top: 20px;">
+                <label style="display: block; font-size: 11px; font-weight: 600; margin-bottom: 5px; opacity: 0.7; letter-spacing: 1px;">GESTURE NAME</label>
+                <input type="text" id="studio-name" placeholder="E.g. Spiderman Web" style="width: calc(100% - 24px); padding: 10px 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px; font-family: inherit; outline: none; margin-bottom: 15px;">
+                
+                <label style="display: block; font-size: 11px; font-weight: 600; margin-bottom: 5px; opacity: 0.7; letter-spacing: 1px;">BASH / POWERSHELL SCRIPT</label>
+                <input type="text" id="studio-script" placeholder="SCRIPT: open -a Spotify" style="width: calc(100% - 24px); padding: 10px 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px; font-family: inherit; outline: none;">
+            </div>
+
+            <div id="studio-status" style="margin-top: 20px; font-size: 14px; font-weight: 700; color: #ffeb3b; text-align: center; height: 20px;"></div>
+
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button id="studio-cancel" style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: white; font-weight: 600; cursor: pointer;">Cancel</button>
+                <button id="studio-record" style="flex: 1; padding: 12px; border-radius: 8px; border: none; background: #a200ff; color: white; font-weight: 600; cursor: pointer; text-transform: uppercase;">1. Hold Pose & Record</button>
+            </div>
         </div>
     </div>
 

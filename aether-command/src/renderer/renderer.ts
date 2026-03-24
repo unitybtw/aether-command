@@ -111,6 +111,7 @@ class AetherCommandRenderer {
     private gestureTimeout: any = null;
     private isActivated = true;
     private leftHandMode = false;
+    private customGestures: any[] = [];
     
     private lastActionTimes: Map<string, number> = new Map();
     private lastGlobalActionTime: number = 0;
@@ -147,6 +148,7 @@ class AetherCommandRenderer {
     private lastLaserAction: 'draw' | 'move' | 'clear' = 'move';
     private lastX: number = 0;
     private lastY: number = 0;
+    private lastDetectedLandmarks: any[] | null = null;
 
     constructor() {
         this.video = document.getElementById('webcam') as HTMLVideoElement;
@@ -398,6 +400,7 @@ class AetherCommandRenderer {
         this.updateActivationUIState(settings.requireKey);
         this.leftHandMode = settings.leftHandMode;
         this.cursorSpeed = settings.cursorSpeed || 1.5;
+        this.customGestures = settings.customGestures || [];
         if (this.tracker) this.tracker.updateOptions(settings.sensitivity);
     }
 
@@ -489,6 +492,71 @@ class AetherCommandRenderer {
             });
         }
 
+        // Gesture Studio Event Listeners
+        const btnStudio = document.getElementById('open-gesture-studio');
+        const modalStudio = document.getElementById('gesture-studio-modal');
+        const btnStudioCancel = document.getElementById('studio-cancel');
+        const btnStudioRecord = document.getElementById('studio-record');
+        const inputName = document.getElementById('studio-name') as HTMLInputElement;
+        const inputScript = document.getElementById('studio-script') as HTMLInputElement;
+        const statusStudio = document.getElementById('studio-status');
+
+        if (btnStudio && modalStudio) {
+            btnStudio.addEventListener('click', () => {
+                modalStudio.style.display = 'flex';
+                if (statusStudio) statusStudio.innerText = '';
+                if (inputName) inputName.value = '';
+                if (inputScript) inputScript.value = '';
+            });
+        }
+
+        if (btnStudioCancel && modalStudio) {
+            btnStudioCancel.addEventListener('click', () => {
+                modalStudio.style.display = 'none';
+            });
+        }
+
+        if (btnStudioRecord && statusStudio && inputName && inputScript) {
+            btnStudioRecord.addEventListener('click', () => {
+                if (!inputName.value) { statusStudio.innerText = 'Error: Enter gesture name'; return; }
+                if (!inputScript.value) { statusStudio.innerText = 'Error: Enter script command'; return; }
+
+                statusStudio.innerText = 'Hold pose... 3';
+                let count = 3;
+                
+                const interval = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        statusStudio.innerText = `Hold pose... ${count}`;
+                        this.audio.playSuccess(0.5, 0.4);
+                    } else {
+                        clearInterval(interval);
+                        if (!this.lastDetectedLandmarks) {
+                            statusStudio.innerText = 'Error: Hand not seen. Try again.';
+                        } else {
+                            this.vfx.createBurst(this.canvas.width/2, this.canvas.height/2, 50, '#a200ff');
+                            this.audio.playSuccess(0.5, 0.9);
+                            statusStudio.innerText = 'GESTURE SAVED!';
+
+                            // Save to custom gestures
+                            this.customGestures.push({
+                                name: inputName.value,
+                                action: inputScript.value,
+                                landmarks: JSON.parse(JSON.stringify(this.lastDetectedLandmarks)) // Clone
+                            });
+
+                            this.handleSettingChange(); // Push to backend
+                            this.log(`Expert: Saved custom gesture [${inputName.value}]`);
+
+                            setTimeout(() => {
+                                if (modalStudio) modalStudio.style.display = 'none';
+                            }, 1500);
+                        }
+                    }
+                }, 1000);
+            });
+        }
+
         // Profile Switcher
         const profileSelect = document.getElementById('setting-profile') as HTMLSelectElement;
         if (profileSelect) {
@@ -575,7 +643,8 @@ class AetherCommandRenderer {
             batterySaver: (document.getElementById('setting-battery-saver') as HTMLInputElement).checked,
             extraVfx: (document.getElementById('setting-vfx-extra') as HTMLInputElement).checked,
             cursorSpeed: parseFloat((document.getElementById('setting-cursor-speed') as HTMLInputElement).value),
-            deviceId: (document.getElementById('setting-camera-source') as HTMLSelectElement)?.value
+            deviceId: (document.getElementById('setting-camera-source') as HTMLSelectElement)?.value,
+            customGestures: this.customGestures
         };
         this.lerpAmount = settings.smoothing;
         this.smoother.setFactor(settings.smoothing);
@@ -732,6 +801,8 @@ class AetherCommandRenderer {
                         
                         // Predictive Smoothing
                         const smoothed = this.smoother.smooth(result.landmarks[0]);
+                        this.lastDetectedLandmarks = smoothed; // Cache for Gesture Studio
+
                         this.vfx.drawSkeleton(smoothed, this.canvas.width, this.canvas.height, confidence);
 
                         // Proximity Warning
@@ -740,7 +811,7 @@ class AetherCommandRenderer {
                             proxEl.style.opacity = smoothed[0].z < -0.8 ? '1' : '0';
                         }
 
-                        const state = this.gesture.process(smoothed);
+                        const state = this.gesture.process(smoothed, this.customGestures);
                         
                         // New: Always handle mouse move if palm is open, even if not toggled "Activated"
                         // This allows mouse control to be independent of the safety toggle if desired,
@@ -1061,6 +1132,12 @@ class AetherCommandRenderer {
             this.isPinchHeld = false;
             (window.electronAPI as any).mouseUp();
             this.log("Mouse: Drag End (Up)");
+        }
+
+        // Custom Gesture Override
+        if (state.matchedCustomGesture) {
+            const custom = this.customGestures.find(g => g.name === state.matchedCustomGesture);
+            if (custom) action = custom.action;
         }
 
         if (action && action !== 'NONE' && action !== 'MOUSE_MODE' && action !== 'MOUSE_SCROLL') this.triggerAction(action);

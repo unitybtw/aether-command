@@ -14,13 +14,14 @@ export interface GestureState {
     pinchStartPos: { x: number, y: number } | null;
     lastWristPos: { x: number, y: number };
     depth: number;
+    matchedCustomGesture: string | null;
 }
 
 export class GestureEngine {
     private lastWristPos: { x: number, y: number } | null = null;
     private velocity = { x: 0, y: 0 };
 
-    public process(landmarks: any[]): GestureState {
+    public process(landmarks: any[], customGestures: any[] = []): GestureState {
         const wrist = landmarks[0];
         const thumbTip = landmarks[4];
         const indexTip = landmarks[8];
@@ -86,8 +87,40 @@ export class GestureEngine {
             isPeace,
             pinchStartPos,
             lastWristPos: { x: wrist.x, y: wrist.y },
-            depth: (wrist.z + 0.5) * 2 // Normalized 0-1 depth
+            depth: (wrist.z + 0.5) * 2, // Normalized 0-1 depth
+            matchedCustomGesture: this.matchCustomGesture(landmarks, customGestures, handScale)
         };
+    }
+
+    private matchCustomGesture(liveLandmarks: any[], storedGestures: any[], scale: number): string | null {
+        if (!storedGestures || storedGestures.length === 0) return null;
+        
+        // Normalize live landmarks relative to wrist and scale
+        const wrist = liveLandmarks[0];
+        const normalizedLive = liveLandmarks.map(pt => ({
+            x: (pt.x - wrist.x) / scale,
+            y: (pt.y - wrist.y) / scale,
+            z: (pt.z - wrist.z) / scale
+        }));
+
+        for (const gesture of storedGestures) {
+            let totalError = 0;
+            for (let i = 1; i < 21; i++) {
+                const live = normalizedLive[i];
+                const stored = gesture.landmarks[i];
+                if (!stored) continue;
+                
+                const dx = live.x - stored.x;
+                const dy = live.y - stored.y;
+                const dz = live.z - stored.z;
+                totalError += Math.sqrt(dx*dx + dy*dy + dz*dz);
+            }
+            // Average error per landmark. < 0.15 is considered a match
+            if ((totalError / 20) < 0.15) {
+                return gesture.name;
+            }
+        }
+        return null;
     }
 
     private calculateDistance(p1: any, p2: any): number {

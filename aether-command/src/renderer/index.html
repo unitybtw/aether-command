@@ -6,15 +6,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #050508;
+            --bg-color: #030406;
             --accent-primary: #00e5ff;
             --accent-secondary: #7000ff;
-            --panel-bg: rgba(20, 20, 25, 0.7);
-            --text-main: #ffffff;
-            --text-muted: #94a3b8;
-            --border-glow: rgba(0, 229, 255, 0.2);
-            --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-            --glass-blur: blur(20px) saturate(180%);
+            --panel-bg: rgba(13, 14, 18, 0.75);
+            --text-main: #f8fafc;
+            --text-muted: #8a99af;
+            --border-glow: rgba(0, 229, 255, 0.25);
+            --card-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+            --glass-blur: blur(25px) saturate(200%);
+            --neon-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
         }
         body {
             background-color: var(--bg-color);
@@ -91,25 +92,36 @@
             pointer-events: none;
         }
         .panel {
-            background: rgba(25, 25, 30, 0.65);
-            border-radius: 16px;
-            padding: 24px;
-            backdrop-filter: blur(30px) saturate(180%);
-            -webkit-backdrop-filter: blur(30px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: var(--panel-bg);
+            border-radius: 24px;
+            padding: 28px;
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             display: flex;
             flex-direction: column;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            box-shadow: var(--card-shadow);
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
             height: 100%;
             box-sizing: border-box;
             min-height: 0;
-            animation: scale-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation: scale-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            position: relative;
+            overflow: hidden;
         }
-        .panel:nth-child(2) { animation-delay: 0.1s; }
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        }
         .panel:hover {
-            border-color: rgba(255, 255, 255, 0.15);
-            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.6);
+            border-color: rgba(0, 229, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 15px rgba(0, 229, 255, 0.05);
         }
         h2 {
             margin-top: 0;
@@ -257,50 +269,56 @@
         }
         select {
             width: 100%;
-            background: rgba(20, 20, 25, 0.8) !important;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: white;
-            padding: 10px 14px;
-            padding-right: 30px;
-            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.4) !important;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: #fff;
+            padding: 12px 16px;
+            padding-right: 40px;
+            border-radius: 12px;
             outline: none;
             appearance: none;
             -webkit-appearance: none;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             font-family: inherit;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            font-size: 0.85rem;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300e5ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
             background-repeat: no-repeat;
-            background-position: right 10px center;
+            background-position: right 14px center;
             background-size: 16px;
         }
         select:hover {
-            border-color: rgba(255, 255, 255, 0.3);
-            background-color: rgba(30, 30, 35, 0.9) !important;
+            border-color: rgba(0, 229, 255, 0.3);
+            background-color: rgba(255, 255, 255, 0.05) !important;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.1);
         }
         select:focus {
             border-color: var(--accent-primary);
-            box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.2);
+            box-shadow: 0 0 0 4px rgba(0, 229, 255, 0.15), 0 0 20px rgba(0, 229, 255, 0.2);
+            background-color: rgba(0, 0, 0, 0.6) !important;
         }
         .gesture-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 12px;
-            padding: 14px 18px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 16px;
+            margin-bottom: 14px;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 20px;
             border: 1px solid rgba(255, 255, 255, 0.03);
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            animation: slide-up-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-            animation-delay: calc(var(--delay, 0) * 0.05s);
-            transform-origin: center right;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            animation: slide-up-fade 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+            animation-delay: calc(var(--delay, 0) * 0.08s);
         }
         .gesture-row:hover {
-            background: rgba(255, 255, 255, 0.06);
-            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(0, 229, 255, 0.03);
+            border-color: rgba(0, 229, 255, 0.2);
             transform: translateX(4px);
-            box-shadow: -4px 4px 15px rgba(0,0,0,0.2);
+        }
+        .gesture-row.active {
+            background: rgba(0, 229, 255, 0.08);
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 25px rgba(0, 229, 255, 0.15);
         }
         .gesture-label {
             display: flex;

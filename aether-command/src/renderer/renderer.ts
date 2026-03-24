@@ -625,10 +625,8 @@ class AetherCommandRenderer {
                         this.confEl.style.color = lowLight ? '#ff9800' : 'rgba(255,255,255,0.4)';
                     }
 
-                    // Lower confidence requirement in low light to avoid "hand lost" stutter
-                    const minConf = this.currentBrightness < 50 ? 0.5 : 0.7;
-                    const isRequestedHand = (handedness === 'Unknown' || confidence > minConf) && 
-                                           (this.leftHandMode ? (handedness === 'Left') : (handedness === 'Right'));
+                    // Any detected hand with sufficient confidence is accepted
+                    const isRequestedHand = (confidence > 0.35);
                     
                     if (isRequestedHand) {
                         window.electronAPI.setTrackingStatus(true);

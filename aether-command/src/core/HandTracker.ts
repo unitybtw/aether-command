@@ -20,9 +20,9 @@ export class HandTracker {
         console.log("[HandTracker] Starting initialization...");
 
         try {
-            console.log("[HandTracker] Resolving fileset from CDN...");
+            console.log("[HandTracker] Resolving fileset from CDN (v0.10.32)...");
             const vision = await FilesetResolver.forVisionTasks(
-                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm"
             );
             console.log("[HandTracker] Fileset resolved.");
 
@@ -33,10 +33,10 @@ export class HandTracker {
                     delegate: "GPU"
                 },
                 runningMode: "VIDEO",
-                numHands: 1, 
-                minHandDetectionConfidence: 0.8,
-                minHandPresenceConfidence: 0.8,
-                minTrackingConfidence: 0.8
+                numHands: 2, 
+                minHandDetectionConfidence: 0.4,
+                minHandPresenceConfidence: 0.4,
+                minTrackingConfidence: 0.4
             });
             console.log("[HandTracker] HandLandmarker created successfully.");
 
@@ -72,7 +72,7 @@ export class HandTracker {
         // If hand was recently visible, keep HIGH FPS (no skip)
         // If hand lost for some time, skip frames increasingly
         if (this.lastHandCount === 0) {
-            const skip = this.frameCount % 20 !== 0; // Check ~3 times a second when searching
+            const skip = this.frameCount % 5 !== 0; // Check ~6 times a second instead of 1.5
             if (skip) return null;
         }
 

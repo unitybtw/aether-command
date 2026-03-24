@@ -29,13 +29,13 @@ const DEFAULT_SETTINGS: AppSettings = {
         swipe: 'SPACES'
     },
     smoothing: 0.5,
-    sensitivity: 0.7,
+    sensitivity: 0.6,
     cursorSpeed: 1.5,
     openAtLogin: false,
     requireKey: false,
     leftHandMode: false,
     theme: 'cyberpunk',
-    activationKey: 'Command'
+    activationKey: 'Option'
 };
 
 export class SettingsManager {

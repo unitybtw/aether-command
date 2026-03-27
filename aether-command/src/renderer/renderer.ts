@@ -1,6 +1,7 @@
 import { HandTracker } from '../core/HandTracker';
 import { GestureEngine } from '../core/GestureEngine';
 import { VFXManager } from './VFXManager';
+import { HUDManager } from './HUDManager';
 
 declare global {
   interface Window {
@@ -103,6 +104,8 @@ class AetherCommandRenderer {
     private ctx: CanvasRenderingContext2D;
     private statusEl: HTMLElement;
     private logEl: HTMLElement;
+    private hud: HUDManager;
+    private signalPillEl: HTMLElement | null = null;
 
     private isRunning: boolean = false;
     private lerpAmount: number = 0.5;
@@ -136,7 +139,6 @@ class AetherCommandRenderer {
     private proxEl: HTMLElement | null = null;
     private lightWarnEl: HTMLElement | null = null;
     private velWarnEl: HTMLElement | null = null;
-    private signalPillEl: HTMLElement | null = null;
     private settingElements: Record<string, HTMLInputElement | HTMLSelectElement> = {};
     private saveTimeout: any = null;
     private isUIPriority: boolean = false;
@@ -162,7 +164,9 @@ class AetherCommandRenderer {
     private lastWristPos = { x: 0.5, y: 0.5 };
     private lastPointerPos = { x: 0.5, y: 0.5 };
     private lastMultiHandDist: number = 0;
+    private lastMultiHandAngle: number = 0;
     private diagnosticMode: boolean = false;
+    private cursorSpeed: number = 1.5;
 
     constructor() {
         this.video = document.getElementById('webcam') as HTMLVideoElement;
@@ -176,6 +180,7 @@ class AetherCommandRenderer {
         this.tracker = new HandTracker();
         this.gesture = new GestureEngine();
         this.vfx = new VFXManager(this.ctx);
+        this.hud = new HUDManager(this.stabilityCanvas, this.logEl);
         this.statusPills = document.querySelectorAll('.status-pill');
         this.brightnessCanvas.width = 20;
         this.brightnessCanvas.height = 15;
@@ -300,44 +305,6 @@ class AetherCommandRenderer {
     }
 
 
-
-    private drawStabilityGraph(stability: number) {
-        if (!this.isVisible) return;
-        this.stabilityData.copyWithin(0, 1);
-        this.stabilityData[49] = stability;
-
-        if (this.stabilityCanvas.width !== this.stabilityCanvas.clientWidth || 
-            this.stabilityCanvas.height !== this.stabilityCanvas.clientHeight) {
-            this.stabilityCanvas.width = this.stabilityCanvas.clientWidth;
-            this.stabilityCanvas.height = this.stabilityCanvas.clientHeight;
-        }
-        const w = this.stabilityCanvas.width;
-        const h = this.stabilityCanvas.height;
-        const ctx = this.stabilityCtx;
-
-        ctx.clearRect(0, 0, w, h);
-        ctx.beginPath();
-        ctx.strokeStyle = this.vfx.baseColor;
-        ctx.lineWidth = 1.5;
-        
-        for (let i = 0; i < 50; i++) {
-            const val = this.stabilityData[i];
-            const x = (i / 49) * w;
-            const y = h - (val * (h * 0.8));
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-
-        // Gradient Fill
-        ctx.lineTo(w, h);
-        ctx.lineTo(0, h);
-        const grad = ctx.createLinearGradient(0, 0, 0, h);
-        grad.addColorStop(0, this.vfx.baseColor + '33');
-        grad.addColorStop(1, 'transparent');
-        ctx.fillStyle = grad;
-        ctx.fill();
-    }
 
     private wakeUp() {
         this.lastInteractionTime = Date.now();
@@ -908,34 +875,44 @@ class AetherCommandRenderer {
 
                             if (this.isActivated) {
                                 const stability = Math.max(0, 1 - velocity * 5);
-                                this.drawStabilityGraph(stability);
+                                if (this.hud) this.hud.updateStability(stability);
                                 this.updateGestureUI(state);
                             } else {
                                 this.updateGestureUI(null);
-                                this.drawStabilityGraph(0);
+                                if (this.hud) this.hud.updateStability(0);
                             }
                             this.updateQualityUI(confidence, true);
                         }
                     });
 
-                    // Handle Multi-Hand Effects (Zoom)
+                    // Handle Multi-Hand Spatial Navigation (Zoom & Window Switching)
                     if (states.length >= 2) {
                         const effects = this.gesture.calculateMultiHandEffects(states);
+                        
+                        // 1. Elastic Zoom (Pinch Distance)
                         if (effects.zoom > 0) {
                             if (this.lastMultiHandDist > 0) {
                                 const delta = effects.zoom - this.lastMultiHandDist;
-                                if (Math.abs(delta) > 0.05) {
-                                    if (Math.abs(delta) > 0.1) {
-                                        this.triggerAction(delta > 0 ? 'VOLUME_UP' : 'VOLUME_DOWN', true);
-                                        this.lastMultiHandDist = effects.zoom;
-                                    }
+                                if (Math.abs(delta) > 0.12) { // Sensitivity Threshold
+                                    this.triggerAction(delta > 0 ? 'SYSTEM_ZOOM_IN' : 'SYSTEM_ZOOM_OUT', true);
+                                    this.lastMultiHandDist = effects.zoom;
                                 }
                             } else {
                                 this.lastMultiHandDist = effects.zoom;
                             }
                         }
+
+                        // 2. Spatial Rotation (Window Tabbing)
+                        if (effects.rotation !== 0) {
+                            const angleDelta = effects.rotation - this.lastMultiHandAngle;
+                            if (Math.abs(angleDelta) > 0.4) { // ~25 degree rotation
+                                this.triggerAction(angleDelta > 0 ? 'WINDOW_NEXT' : 'WINDOW_PREV', true);
+                                this.lastMultiHandAngle = effects.rotation;
+                            }
+                        }
                     } else {
                         this.lastMultiHandDist = 0;
+                        this.lastMultiHandAngle = 0;
                     }
 
                     this.lastHandDetectionTime = Date.now();
@@ -1028,25 +1005,11 @@ class AetherCommandRenderer {
     }
 
     private highlightStatus(id: string) {
-        if (!id) return;
-        const el = document.getElementById(id);
-        if (el) {
-            el.classList.add('active');
-            // Force reflow to restart animation
-            el.style.animation = 'none';
-            void (el as any).offsetWidth; 
-            el.style.animation = 'pill-pulse 0.4s cubic-bezier(0.1, 0.9, 0.2, 1)';
-            
-            // Auto-clear after a delay if it's a one-shot highlight
-            // Mouse/Scroll highlights are cleared by handleGestureState clearing logic or next frame
-        }
+        if (this.hud) this.hud.highlightStatus(id);
     }
 
-    private cameraStatus: string = 'checking...';
-    private cursorSpeed: number = 1.5; // Added
-
     private clearStatusHighlights() {
-        this.statusPills.forEach(p => p.classList.remove('active'));
+        if (this.hud) this.hud.clearStatusHighlights();
     }
 
     private handleGestureState(state: any) {
@@ -1308,13 +1271,7 @@ class AetherCommandRenderer {
     }
 
     private log(msg: string) {
-        const entry = document.createElement('div');
-        entry.className = 'log-entry';
-        entry.innerText = `>> ${msg}`;
-        if (this.logEl) {
-            this.logEl.prepend(entry);
-            while (this.logEl.children.length > 15) this.logEl.removeChild(this.logEl.lastChild!);
-        }
+        if (this.hud) this.hud.updateLog(msg);
         window.electronAPI.log('info', msg);
     }
 }

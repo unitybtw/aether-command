@@ -162,22 +162,28 @@ export class GestureEngine {
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
     
-    public calculateMultiHandEffects(hands: GestureState[]): { zoom: number } {
-        if (hands.length < 2) return { zoom: 0 };
+    public calculateMultiHandEffects(hands: GestureState[]): { zoom: number, rotation: number } {
+        if (hands.length < 2) return { zoom: 0, rotation: 0 };
         
         const h1 = hands[0];
         const h2 = hands[1];
 
-        // If both hands are pinching, calculate distance change for ZOOM
-        if (h1.isPinching && h2.isPinching) {
-            // Calculate 2D distance between the wrists for zoom
-            const dist = Math.sqrt(Math.pow(h1.lastWristPos.x - h2.lastWristPos.x, 2) + Math.pow(h1.lastWristPos.y - h2.lastWristPos.y, 2));
-            // We need previous distance to calculate delta. 
-            // For now, let's just return the absolute distance and let the renderer handle delta.
-            return { zoom: dist };
+        // Multi-Hand Spatial Context
+        // We only calculate effects if both hands are in a 'meaningful' state (Pinch or Palm)
+        if ((h1.isPinching || h1.isOpenPalm) && (h2.isPinching || h2.isOpenPalm)) {
+            // 1. Distance (Zoom)
+            const dx = h1.lastWristPos.x - h2.lastWristPos.x;
+            const dy = h1.lastWristPos.y - h2.lastWristPos.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // 2. Angle (Rotation)
+            // Calculate angle in radians between the two hands
+            const rotation = Math.atan2(dy, dx);
+
+            return { zoom: dist, rotation };
         }
 
-        return { zoom: 0 };
+        return { zoom: 0, rotation: 0 };
     }
     
     public reset() {

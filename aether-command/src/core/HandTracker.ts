@@ -59,25 +59,33 @@ export class HandTracker {
 
     private frameCount: number = 0;
     private lastHandCount: number = 0;
+    private lastHandFoundTime: number = Date.now();
 
     public detect(video: HTMLVideoElement, timestamp: number): HandResults | null {
         if (!this.handLandmarker || !this.isInitialized) return null;
 
-        /** 
-         * OPTIMIZATION:
-         * Skip 1 frame if hand found to maintain high FPS but save cycles.
-         */
         this.frameCount++;
-        
-        // If hand was recently visible, keep HIGH FPS (no skip)
-        // If hand lost for some time, skip frames increasingly
+        const now = Date.now();
+        const timeSinceHand = now - this.lastHandFoundTime;
+
+        // --- PASSIVE SLEEP LOGIC ---
+        // If no hand for 10s -> 10 FPS (~skip 5/6 frames)
+        // If no hand for 30s -> 5 FPS (~skip 11/12 frames)
+        let skipFactor = 1;
         if (this.lastHandCount === 0) {
-            const skip = this.frameCount % 5 !== 0; // Check ~6 times a second instead of 1.5
-            if (skip) return null;
+            if (timeSinceHand > 30000) skipFactor = 12;      // 5 FPS Extreme Sleep
+            else if (timeSinceHand > 10000) skipFactor = 6;  // 10 FPS Passive Sleep
+            else skipFactor = 3;                             // 20 FPS Searching
         }
+
+        if (this.frameCount % skipFactor !== 0) return null;
 
         const results = this.handLandmarker.detectForVideo(video, timestamp);
         this.lastHandCount = results.landmarks ? results.landmarks.length : 0;
+        
+        if (this.lastHandCount > 0) {
+            this.lastHandFoundTime = now;
+        }
         
         return {
             landmarks: results.landmarks || [],

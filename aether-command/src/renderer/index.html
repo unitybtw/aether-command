@@ -248,9 +248,11 @@
         button, select, .status-pill {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
             cursor: pointer;
+            will-change: transform, opacity;
+            backface-visibility: hidden;
         }
         button:active, select:active, .status-pill:active {
-            transform: scale(0.95);
+            transform: scale(0.96);
             filter: brightness(1.2);
         }
         /* Settings Styles */
@@ -332,7 +334,7 @@
             box-shadow: 0 10px 20px rgba(0,0,0,0.2);
         }
         .gesture-row:active {
-            transform: scale(0.97) translateXStrict(2px);
+            transform: scale(0.97) translateX(2px);
             background: rgba(0, 229, 255, 0.08);
         }
         .gesture-row.active {

@@ -137,6 +137,9 @@ class AetherCommandRenderer {
     private lightWarnEl: HTMLElement | null = null;
     private velWarnEl: HTMLElement | null = null;
     private signalPillEl: HTMLElement | null = null;
+    private settingElements: Record<string, HTMLInputElement | HTMLSelectElement> = {};
+    private saveTimeout: any = null;
+
     private readonly SUSPEND_TIMEOUT_MS = 300000;
     private currentBrightness: number = 0;
     private brightnessCanvas = document.createElement('canvas');
@@ -480,7 +483,8 @@ class AetherCommandRenderer {
             'map-pinch', 'map-fist', 'map-palm', 'map-peace', 'map-swipe'
         ];
         uiIds.forEach(id => {
-            const el = document.getElementById(id);
+            this.settingElements[id] = document.getElementById(id) as any;
+            const el = this.settingElements[id];
             if (el) el.addEventListener('change', () => {
                 if (id === 'setting-require-key') this.updateActivationUIState((el as HTMLInputElement).checked);
                 if (id === 'setting-camera-source') {
@@ -676,43 +680,48 @@ class AetherCommandRenderer {
     }
 
     private handleSettingChange() {
-        const oldHand = this.leftHandMode;
+        if (this.saveTimeout) clearTimeout(this.saveTimeout);
+        
+        // Use cached elements for zero-latency retrieval
+        const s = this.settingElements;
         const settings = {
             mappings: {
-                pinch: (document.getElementById('map-pinch') as HTMLSelectElement).value,
-                fist: (document.getElementById('map-fist') as HTMLSelectElement).value,
-                palm: (document.getElementById('map-palm') as HTMLSelectElement).value,
-                peace: (document.getElementById('map-peace') as HTMLSelectElement).value,
-                swipe: (document.getElementById('map-swipe') as HTMLSelectElement).value,
+                pinch: s['map-pinch']?.value,
+                fist: s['map-fist']?.value,
+                palm: s['map-palm']?.value,
+                peace: s['map-peace']?.value,
+                swipe: s['map-swipe']?.value,
             },
-            smoothing: parseFloat((document.getElementById('setting-smoothing') as HTMLInputElement).value),
-            openAtLogin: (document.getElementById('setting-autolaunch') as HTMLInputElement).checked,
-            requireKey: (document.getElementById('setting-require-key') as HTMLInputElement).checked,
-            activationKey: (document.getElementById('setting-activation-key') as HTMLSelectElement).value,
-            sensitivity: parseFloat((document.getElementById('setting-sensitivity') as HTMLInputElement).value),
-            theme: (document.getElementById('setting-theme') as HTMLSelectElement).value,
-            leftHandMode: (document.getElementById('setting-hand-preference') as HTMLInputElement).checked,
-            batterySaver: (document.getElementById('setting-battery-saver') as HTMLInputElement).checked,
-            extraVfx: (document.getElementById('setting-vfx-extra') as HTMLInputElement).checked,
-            cursorSpeed: parseFloat((document.getElementById('setting-cursor-speed') as HTMLInputElement).value),
-            deviceId: (document.getElementById('setting-camera-source') as HTMLSelectElement)?.value,
+            smoothing: parseFloat(s['setting-smoothing']?.value || '0.5'),
+            openAtLogin: (s['setting-autolaunch'] as HTMLInputElement)?.checked,
+            requireKey: (s['setting-require-key'] as HTMLInputElement)?.checked,
+            activationKey: s['setting-activation-key']?.value,
+            sensitivity: parseFloat(s['setting-sensitivity']?.value || '0.8'),
+            theme: s['setting-theme']?.value,
+            leftHandMode: (s['setting-hand-preference'] as HTMLInputElement)?.checked,
+            batterySaver: (s['setting-battery-saver'] as HTMLInputElement)?.checked,
+            extraVfx: (s['setting-vfx-extra'] as HTMLInputElement)?.checked,
+            cursorSpeed: parseFloat(s['setting-cursor-speed']?.value || '1.5'),
             customGestures: this.customGestures
         };
+
+        // Apply immediately for feedback
         this.lerpAmount = settings.smoothing;
         this.smoother.setFactor(settings.smoothing);
         this.leftHandMode = settings.leftHandMode;
-        this.cursorSpeed = settings.cursorSpeed; // Updated
+        this.cursorSpeed = settings.cursorSpeed;
         this.applyTheme(settings.theme as string);
         this.tracker.updateOptions(settings.sensitivity);
         this.vfx.setExtraEffects(settings.extraVfx);
-        (window as any).isBatterySaverEnabled = settings.batterySaver;
-        window.electronAPI.saveSettings(settings);
 
-        if (oldHand !== this.leftHandMode) {
-            this.audio.playSuccess(this.leftHandMode ? 0.2 : 0.8, 0.5);
-            this.log(`System: Hand preference updated to ${this.leftHandMode ? 'LEFT' : 'RIGHT'}`);
-        }
+        // Debounce actual disk save to prevent UI stutter
+        this.saveTimeout = setTimeout(() => {
+            window.electronAPI.saveSettings(settings);
+            this.log('System: Settings synced to storage.');
+        }, 500);
     }
+
+
 
     private async updateCameraList() {
         const select = document.getElementById('setting-camera-source') as HTMLSelectElement;

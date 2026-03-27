@@ -132,6 +132,11 @@ class AetherCommandRenderer {
     private lastInteractionTime: number = Date.now();
     private isSuspended: boolean = false;
     private isVisible: boolean = true;
+    private panels: NodeListOf<Element> | null = null;
+    private proxEl: HTMLElement | null = null;
+    private lightWarnEl: HTMLElement | null = null;
+    private velWarnEl: HTMLElement | null = null;
+    private signalPillEl: HTMLElement | null = null;
     private readonly SUSPEND_TIMEOUT_MS = 300000;
     private currentBrightness: number = 0;
     private brightnessCanvas = document.createElement('canvas');
@@ -184,6 +189,11 @@ class AetherCommandRenderer {
         this.uiElements['last-gesture'] = document.getElementById('last-gesture')!;
         this.uiElements['gesture-status-overlay'] = document.getElementById('gesture-status-overlay')!;
         this.uiElements['quality-text'] = document.getElementById('quality-text')!;
+        this.panels = document.querySelectorAll('.panel');
+        this.proxEl = document.getElementById('proximity-warning');
+        this.lightWarnEl = document.getElementById('light-warning');
+        this.velWarnEl = document.getElementById('velocity-warning');
+        this.signalPillEl = document.getElementById('status-signal');
         
         const mapIds = ['map-pinch', 'map-fist', 'map-palm', 'map-peace', 'map-swipe'];
         mapIds.forEach(id => this.mapElements[id] = document.getElementById(id) as HTMLSelectElement);
@@ -232,11 +242,12 @@ class AetherCommandRenderer {
         this.currentTilt.x += (targetX - this.currentTilt.x) * 0.1;
         this.currentTilt.y += (targetY - this.currentTilt.y) * 0.1;
         
-        const panels = document.querySelectorAll('.panel');
-        const transform = `perspective(1500px) rotateX(${-this.currentTilt.y}deg) rotateY(${this.currentTilt.x}deg)`;
-        panels.forEach((panel: any) => {
-            panel.style.transform = transform;
-        });
+        if (this.panels) {
+            const transform = `perspective(1500px) rotateX(${-this.currentTilt.y}deg) rotateY(${this.currentTilt.x}deg)`;
+            this.panels.forEach((panel: any) => {
+                panel.style.transform = transform;
+            });
+        }
     }
 
     private estimateBrightness() {
@@ -791,23 +802,20 @@ class AetherCommandRenderer {
 
                 const result = this.tracker.detect(this.video, performance.now());
                 if (result && result.landmarks && result.landmarks.length > 0) {
-                    if (this.frameCount % 10 === 0) {
-                        const lowLight = this.currentBrightness < 45;
-                        const label = lowLight ? 'LOW LIGHT - BOOSTED' : 'LIGHT OK';
-                        const mainConfidence = (result.handedness[0]?.[0] as any)?.score || 0;
-                        this.confEl.innerText = `CONF: ${(mainConfidence * 100).toFixed(0)}% [${label}]`;
-                        this.confEl.style.color = lowLight ? '#ff9800' : 'rgba(255,255,255,0.4)';
-                        
-                        this.video.style.filter = lowLight ? 
-                            `scaleX(-1) brightness(1.8) contrast(1.5) saturate(1.2)` : 
-                            `scaleX(-1) brightness(1) contrast(1) saturate(1)`;
-                        
-                        const signalPill = document.getElementById('status-signal');
-                        if (signalPill) signalPill.style.display = lowLight ? 'block' : 'none';
-                        
-                        const lightWarn = document.getElementById('light-warning');
-                        if (lightWarn) lightWarn.style.opacity = lowLight ? '1' : '0';
-                    }
+                        if (this.frameCount % 10 === 0) {
+                            const lowLight = this.currentBrightness < 45;
+                            const label = lowLight ? 'LOW LIGHT - BOOSTED' : 'LIGHT OK';
+                            const mainConfidence = (result.handedness[0]?.[0] as any)?.score || 0;
+                            this.confEl.innerText = `CONF: ${(mainConfidence * 100).toFixed(0)}% [${label}]`;
+                            this.confEl.style.color = lowLight ? '#ff9800' : 'rgba(255,255,255,0.4)';
+                            
+                            this.video.style.filter = lowLight ? 
+                                `scaleX(-1) brightness(1.8) contrast(1.5) saturate(1.2)` : 
+                                `scaleX(-1) brightness(1) contrast(1) saturate(1)`;
+                            
+                            if (this.signalPillEl) this.signalPillEl.style.display = lowLight ? 'block' : 'none';
+                            if (this.lightWarnEl) this.lightWarnEl.style.opacity = lowLight ? '1' : '0';
+                        }
 
                     // Multi-Hand Loop: Process all detected hands
                     const states: any[] = [];
@@ -829,8 +837,7 @@ class AetherCommandRenderer {
 
                         if (hIdx === 0) {
                             this.lastDetectedLandmarks = smoothed;
-                            const proxEl = document.getElementById('proximity-warning');
-                            if (proxEl) proxEl.style.opacity = smoothed[0].z < -0.8 ? '1' : '0';
+                            if (this.proxEl) this.proxEl.style.opacity = smoothed[0].z < -0.8 ? '1' : '0';
                         }
 
                         const state = this.gesture.process(smoothed, this.customGestures);
@@ -847,8 +854,7 @@ class AetherCommandRenderer {
                             this.updateTilt(1 - state.pointerPos.x, state.pointerPos.y);
                             this.handleGestureState(state);
 
-                            const velWarn = document.getElementById('velocity-warning');
-                            if (velWarn) velWarn.style.opacity = velocity > 0.15 ? '1' : '0';
+                            if (this.velWarnEl) this.velWarnEl.style.opacity = velocity > 0.15 ? '1' : '0';
 
                             if (this.isActivated) {
                                 const stability = Math.max(0, 1 - velocity * 5);

@@ -210,26 +210,21 @@ class AetherCommandRenderer {
     }
 
     private setupTiltEffect() {
-        let lastX = 0;
-        let lastY = 0;
-        const panels = document.querySelectorAll('.panel'); // Cache panels
+        const panels = document.querySelectorAll('.panel');
         
-        document.addEventListener('mousemove', (e) => {
+        // This will now be called from the main loop using hand coordinates
+        this.updateTilt = (hx: number, hy: number) => {
             if (!this.isVisible) return;
-            const targetX = (e.clientX / window.innerWidth - 0.5) * 8;
-            const targetY = (e.clientY / window.innerHeight - 0.5) * 8;
-
-            // Only update if movement is significant (> 0.2 deg change)
-            if (Math.abs(targetX - lastX) > 0.2 || Math.abs(targetY - lastY) > 0.2) {
-                lastX = targetX;
-                lastY = targetY;
-                const transform = `perspective(1000px) rotateX(${-targetY}deg) rotateY(${targetX}deg)`;
-                panels.forEach((panel: any) => {
-                    panel.style.transform = transform;
-                });
-            }
-        });
+            const targetX = (hx - 0.5) * 12;
+            const targetY = (hy - 0.5) * 12;
+            const transform = `perspective(1200px) rotateX(${-targetY}deg) rotateY(${targetX}deg)`;
+            panels.forEach((panel: any) => {
+                panel.style.transform = transform;
+            });
+        };
     }
+
+    private updateTilt: (x: number, y: number) => void = () => {};
 
     private estimateBrightness() {
         if (!this.video.videoWidth) return;
@@ -646,6 +641,9 @@ class AetherCommandRenderer {
             profileSelect.value = targetProfile;
             profileSelect.dispatchEvent(new Event('change'));
             
+            const statusText = document.getElementById('system-status-text');
+            if (statusText) statusText.innerText = `PROFILE: ${targetProfile.toUpperCase()}`;
+            
             // Auto-update SWIPE mappings based on profile
             const swipeSelect = document.getElementById('map-swipe') as HTMLSelectElement;
             if (swipeSelect) {
@@ -856,9 +854,13 @@ class AetherCommandRenderer {
                         this.lastWristPos = state.lastWristPos;
                         this.lastPointerPos = state.pointerPos;
                         
-                        // New: Always handle mouse move if palm is open, even if not toggled "Activated"
-                        // This allows mouse control to be independent of the safety toggle if desired,
-                        // or we can keep it inside if (this.isActivated). Let's move it OUT for better UX.
+                        // Adaptive Smoothing: Slow movement = Higher precision, Fast movement = Lower latency
+                        const velocity = Math.sqrt(state.velocity.x**2 + state.velocity.y**2);
+                        const adaptiveFactor = Math.max(0.05, Math.min(0.9, this.lerpAmount * (1 - velocity * 10)));
+                        this.smoother.setFactor(adaptiveFactor);
+
+                        // Dashboard Parallax: Tilt UI to follow the hand
+                        this.updateTilt(1 - state.pointerPos.x, state.pointerPos.y);
                         this.handleGestureState(state);
 
                         if (this.isActivated) {
@@ -968,10 +970,18 @@ class AetherCommandRenderer {
     }
 
     private highlightStatus(id: string) {
-        this.clearStatusHighlights();
         if (!id) return;
-        if (!this.uiElements[id]) this.uiElements[id] = document.getElementById(id)!;
-        if (this.uiElements[id]) this.uiElements[id].classList.add('active');
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.add('active');
+            // Force reflow to restart animation
+            el.style.animation = 'none';
+            void (el as any).offsetWidth; 
+            el.style.animation = 'pill-pulse 0.4s cubic-bezier(0.1, 0.9, 0.2, 1)';
+            
+            // Auto-clear after a delay if it's a one-shot highlight
+            // Mouse/Scroll highlights are cleared by handleGestureState clearing logic or next frame
+        }
     }
 
     private cameraStatus: string = 'checking...';
@@ -1170,9 +1180,9 @@ class AetherCommandRenderer {
                 else {
                     const deltaY = state.lastWristPos.y - this.pinchAnchorY;
                     if (Math.abs(deltaY) > 0.02) {
-                        // CGEvent Scroll Wheel: + is UP, - is DOWN
-                        // Hand moves down -> deltaY is positive -> we want to scroll down (-1)
-                        const scrollAmount = Math.round(-deltaY * 50);
+                        // Neural Physics: Apply momentum to scroll speed
+                        const scrollMultiplier = 50 + (Math.abs(state.velocity.y) * 200);
+                        const scrollAmount = Math.round(-deltaY * scrollMultiplier);
                         if (scrollAmount !== 0) {
                             (window.electronAPI as any).mouseScroll(scrollAmount);
                             this.pinchAnchorY = state.lastWristPos.y;

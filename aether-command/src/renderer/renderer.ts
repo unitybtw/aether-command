@@ -121,9 +121,6 @@ class AetherCommandRenderer {
     private stabilityCanvas: HTMLCanvasElement;
     private stabilityCtx: CanvasRenderingContext2D;
     private stabilityData = new Float32Array(50);
-    private neuralCanvas: HTMLCanvasElement;
-    private neuralCtx: CanvasRenderingContext2D;
-    private neuralData = new Float32Array(50);
     private lastFps: number = 0;
     private gestureLocked: boolean = false;
     private readonly GLOBAL_DEBOUNCE_MS = 800;
@@ -164,8 +161,6 @@ class AetherCommandRenderer {
         this.ctx = this.canvas.getContext('2d')!;
         this.stabilityCanvas = document.getElementById('stability-canvas') as HTMLCanvasElement;
         this.stabilityCtx = this.stabilityCanvas.getContext('2d')!;
-        this.neuralCanvas = document.getElementById('neural-pulse-graph') as HTMLCanvasElement;
-        this.neuralCtx = this.neuralCanvas.getContext('2d')!;
         this.statusEl = document.getElementById('status-overlay')!;
         this.logEl = document.getElementById('log')!;
         
@@ -274,7 +269,6 @@ class AetherCommandRenderer {
         if (!isHandFound) {
             qualityText.innerText = 'SEARCHING...';
             qualityText.style.color = 'rgba(255,255,255,0.4)';
-            this.drawNeuralWave(0);
             return;
         }
 
@@ -288,37 +282,9 @@ class AetherCommandRenderer {
             qualityText.innerText = 'EXCELLENT';
             qualityText.style.color = '#00ffcc';
         }
-
-        this.drawNeuralWave(confidence);
     }
 
-    private drawNeuralWave(confidence: number) {
-        if (!this.neuralCtx) return;
-        const ctx = this.neuralCtx;
-        const w = this.neuralCanvas.width;
-        const h = this.neuralCanvas.height;
 
-        this.neuralData.copyWithin(0, 1);
-        this.neuralData[49] = confidence;
-
-        ctx.clearRect(0, 0, w, h);
-        ctx.beginPath();
-        ctx.strokeStyle = '#00e5ff';
-        ctx.lineWidth = 1.8;
-        
-        for (let i = 0; i < 50; i++) {
-            const x = (i / 49) * w;
-            const y = h - (this.neuralData[i] * (h * 0.8) + 2);
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-
-        ctx.lineTo(w, h);
-        ctx.lineTo(0, h);
-        ctx.fillStyle = 'rgba(0, 229, 255, 0.15)';
-        ctx.fill();
-    }
 
     private drawStabilityGraph(stability: number) {
         if (!this.isVisible) return;

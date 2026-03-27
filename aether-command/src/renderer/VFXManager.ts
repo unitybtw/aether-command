@@ -113,10 +113,12 @@ export class VFXManager {
             
             // Draw Ghost Trail for Fingertips (Optimized)
             if ([8, 12, 16, 20].includes(idx)) {
-                let trail = this.trails.get(idx);
-                if (!trail) { trail = []; this.trails.set(idx, trail); }
+                // Unique trail ID per hand to prevent flicker
+                const trailId = (landmarks[0].x > 0.5 ? 100 : 0) + idx;
+                let trail = this.trails.get(trailId);
+                if (!trail) { trail = []; this.trails.set(trailId, trail); }
                 trail.push({ x, y });
-                if (trail.length > 6) trail.shift(); // Reduced from 10
+                if (trail.length > 6) trail.shift(); 
 
                 this.ctx.beginPath();
                 this.ctx.moveTo(trail[0].x, trail[0].y);
@@ -126,6 +128,18 @@ export class VFXManager {
                 this.ctx.strokeStyle = this.hexToRgba(mainColor, 0.2);
                 this.ctx.lineWidth = 1;
                 this.ctx.stroke();
+            }
+
+            // Neural Spark: Tiny particle from index tip
+            if (idx === 8 && this.extraVfx && Math.random() > 0.7) {
+                this.particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    size: Math.random() * 2 + 1,
+                    life: 0.5,
+                    color: "#fff"
+                });
             }
 
             // Draw Joint (Optimized Rect)

@@ -155,6 +155,7 @@ class AetherCommandRenderer {
     private lastDetectedLandmarks: any[] | null = null;
     private lastWristPos = { x: 0.5, y: 0.5 };
     private lastPointerPos = { x: 0.5, y: 0.5 };
+    private lastMultiHandDist: number = 0;
 
     constructor() {
         this.video = document.getElementById('webcam') as HTMLVideoElement;
@@ -807,80 +808,90 @@ class AetherCommandRenderer {
 
                 const result = this.tracker.detect(this.video, performance.now());
                 if (result && result.landmarks && result.landmarks.length > 0) {
-                    const handednessInfo = result.handedness?.[0]?.[0] || result.handedness?.[0];
-                    const handedness = (handednessInfo as any)?.categoryName || 'Unknown';
-                    const confidence = (handednessInfo as any)?.score || 0;
-
                     if (this.frameCount % 10 === 0) {
                         const lowLight = this.currentBrightness < 45;
                         const label = lowLight ? 'LOW LIGHT - BOOSTED' : 'LIGHT OK';
-                        this.confEl.innerText = `CONF: ${(confidence * 100).toFixed(0)}% [${label}]`;
+                        const mainConfidence = (result.handedness[0]?.[0] as any)?.score || 0;
+                        this.confEl.innerText = `CONF: ${(mainConfidence * 100).toFixed(0)}% [${label}]`;
                         this.confEl.style.color = lowLight ? '#ff9800' : 'rgba(255,255,255,0.4)';
                         
-                        // Apply CSS boost for visibility if low light
                         this.video.style.filter = lowLight ? 
                             `scaleX(-1) brightness(1.8) contrast(1.5) saturate(1.2)` : 
                             `scaleX(-1) brightness(1) contrast(1) saturate(1)`;
                         
-                        // Show/Hide signal pill
                         const signalPill = document.getElementById('status-signal');
-                        if (signalPill) {
-                             signalPill.style.display = lowLight ? 'block' : 'none';
-                        }
+                        if (signalPill) signalPill.style.display = lowLight ? 'block' : 'none';
+                        
+                        const lightWarn = document.getElementById('light-warning');
+                        if (lightWarn) lightWarn.style.opacity = lowLight ? '1' : '0';
                     }
 
-                    // Any detected hand with sufficient confidence is accepted
-                    const isRequestedHand = (confidence > 0.35);
-                    
-                    if (isRequestedHand) {
-                        this.wakeUp(); // Reset inactivity timer on any valid hand presence
-                        window.electronAPI.setTrackingStatus(true);
-                        
-                        // Predictive Smoothing
-                        const smoothed = this.smoother.smooth(result.landmarks[0]);
-                        this.lastDetectedLandmarks = smoothed; // Cache for Gesture Studio
+                    // Multi-Hand Loop: Process all detected hands
+                    const states: any[] = [];
+                    result.landmarks.forEach((handLandmarks, hIdx) => {
+                        const handednessInfo = result.handedness[hIdx]?.[0] || result.handedness[hIdx];
+                        const confidence = (handednessInfo as any)?.score || 0;
+                        if (confidence < 0.35) return;
 
+                        this.wakeUp();
+                        window.electronAPI.setTrackingStatus(true);
+
+                        const smoothed = this.smoother.smooth(handLandmarks);
                         this.vfx.drawSkeleton(smoothed, this.canvas.width, this.canvas.height, confidence);
 
-                        // Proximity Warning
-                        const proxEl = document.getElementById('proximity-warning');
-                        if (proxEl) {
-                            proxEl.style.opacity = smoothed[0].z < -0.8 ? '1' : '0';
+                        if (hIdx === 0) {
+                            this.lastDetectedLandmarks = smoothed;
+                            const proxEl = document.getElementById('proximity-warning');
+                            if (proxEl) proxEl.style.opacity = smoothed[0].z < -0.8 ? '1' : '0';
                         }
 
                         const state = this.gesture.process(smoothed, this.customGestures);
-                        
-                        // Update Spatial Feedback State
-                        this.lastWristPos = state.lastWristPos;
-                        this.lastPointerPos = state.pointerPos;
-                        
-                        // Adaptive Smoothing: Slow movement = Higher precision, Fast movement = Lower latency
-                        const velocity = Math.sqrt(state.velocity.x**2 + state.velocity.y**2);
-                        const adaptiveFactor = Math.max(0.05, Math.min(0.9, this.lerpAmount * (1 - velocity * 10)));
-                        this.smoother.setFactor(adaptiveFactor);
+                        states.push(state);
 
-                        // Dashboard Parallax: Tilt UI to follow the hand
-                        this.updateTilt(1 - state.pointerPos.x, state.pointerPos.y);
-                        this.handleGestureState(state);
+                        if (hIdx === 0) {
+                            this.lastWristPos = state.lastWristPos;
+                            this.lastPointerPos = state.pointerPos;
+                            
+                            const velocity = Math.sqrt(state.velocity.x**2 + state.velocity.y**2);
+                            const adaptiveFactor = Math.max(0.05, Math.min(0.9, this.lerpAmount * (1 - velocity * 10)));
+                            this.smoother.setFactor(adaptiveFactor);
 
-                        if (this.isActivated) {
-                            // Update Stability (Inversely proportional to velocity)
-                            const vel = Math.sqrt(state.velocity.x ** 2 + state.velocity.y ** 2);
-                            const stability = Math.max(0, 1 - vel * 5);
-                            this.drawStabilityGraph(stability);
-                            this.updateGestureUI(state);
-                        } else {
-                            // If not activated, we still want to clear UI but handleGestureState was called for mouse
-                            this.updateGestureUI(null);
-                            this.drawStabilityGraph(0);
+                            this.updateTilt(1 - state.pointerPos.x, state.pointerPos.y);
+                            this.handleGestureState(state);
+
+                            if (this.isActivated) {
+                                const stability = Math.max(0, 1 - velocity * 5);
+                                this.drawStabilityGraph(stability);
+                                this.updateGestureUI(state);
+                            } else {
+                                this.updateGestureUI(null);
+                                this.drawStabilityGraph(0);
+                            }
+                            this.updateQualityUI(confidence, true);
                         }
-                        this.updateQualityUI(confidence, true);
-                        this.lastHandDetectionTime = Date.now();
+                    });
+
+                    // Handle Multi-Hand Effects (Zoom)
+                    if (states.length >= 2) {
+                        const effects = this.gesture.calculateMultiHandEffects(states);
+                        if (effects.zoom > 0) {
+                            if (this.lastMultiHandDist > 0) {
+                                const delta = effects.zoom - this.lastMultiHandDist;
+                                if (Math.abs(delta) > 0.05) {
+                                    if (Math.abs(delta) > 0.1) {
+                                        this.triggerAction(delta > 0 ? 'VOLUME_UP' : 'VOLUME_DOWN', true);
+                                        this.lastMultiHandDist = effects.zoom;
+                                    }
+                                }
+                            } else {
+                                this.lastMultiHandDist = effects.zoom;
+                            }
+                        }
                     } else {
-                        this.gesture.reset();
-                        this.updateGestureUI(null);
-                        this.updateQualityUI(confidence, false); // Still update quality even if not requested hand
+                        this.lastMultiHandDist = 0;
                     }
+
+                    this.lastHandDetectionTime = Date.now();
                 } else {
                     this.gesture.reset();
                     this.updateQualityUI(0, false);

@@ -156,6 +156,7 @@ class AetherCommandRenderer {
     private lastWristPos = { x: 0.5, y: 0.5 };
     private lastPointerPos = { x: 0.5, y: 0.5 };
     private lastMultiHandDist: number = 0;
+    private diagnosticMode: boolean = false;
 
     constructor() {
         this.video = document.getElementById('webcam') as HTMLVideoElement;
@@ -200,6 +201,23 @@ class AetherCommandRenderer {
             this.isVisible = visible;
             this.log(`System: ${visible ? 'Dashboard Visible' : 'Dashboard Hidden'}.`);
         });
+
+        // Diagnostic Toggle
+        const diagToggle = document.getElementById('status-activation');
+        if (diagToggle) {
+            diagToggle.addEventListener('click', () => {
+                this.diagnosticMode = !this.diagnosticMode;
+                const text = document.getElementById('activation-text');
+                const dot = document.getElementById('activation-dot');
+                if (text) text.innerText = `Aether Vision: ${this.diagnosticMode ? 'ON' : 'OFF'}`;
+                if (dot) {
+                    dot.style.background = this.diagnosticMode ? 'var(--accent-primary)' : '#4CAF50';
+                    dot.style.boxShadow = `0 0 15px ${this.diagnosticMode ? 'var(--accent-primary)' : '#4CAF50'}`;
+                }
+                this.log(`Diagnostic: Aether Vision ${this.diagnosticMode ? 'Engaged' : 'Disengaged'}`);
+                this.audio.playSuccess(0.5, this.diagnosticMode ? 0.8 : 0.4);
+            });
+        }
     }
 
     private setupInactivityListeners() {
@@ -838,6 +856,11 @@ class AetherCommandRenderer {
 
                         const smoothed = this.smoother.smooth(handLandmarks);
                         this.vfx.drawSkeleton(smoothed, this.canvas.width, this.canvas.height, confidence);
+                        
+                        // Draw Technical Mesh if Diagnostic Mode is active
+                        if (this.diagnosticMode) {
+                            this.vfx.drawDiagnosticMesh(smoothed, this.canvas.width, this.canvas.height);
+                        }
 
                         if (hIdx === 0) {
                             this.lastDetectedLandmarks = smoothed;
@@ -858,6 +881,9 @@ class AetherCommandRenderer {
 
                             this.updateTilt(1 - state.pointerPos.x, state.pointerPos.y);
                             this.handleGestureState(state);
+
+                            const velWarn = document.getElementById('velocity-warning');
+                            if (velWarn) velWarn.style.opacity = velocity > 0.15 ? '1' : '0';
 
                             if (this.isActivated) {
                                 const stability = Math.max(0, 1 - velocity * 5);

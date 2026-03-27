@@ -167,6 +167,27 @@ export class VFXManager {
         this.ctx.restore();
     }
 
+    public drawDiagnosticMesh(landmarks: any[], width: number, height: number) {
+        this.ctx.save();
+        this.ctx.font = "8px 'JetBrains Mono', monospace";
+        this.ctx.fillStyle = "rgba(0, 229, 255, 0.8)";
+        
+        landmarks.forEach((pt, idx) => {
+            const x = (1 - pt.x) * width;
+            const y = pt.y * height;
+            
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            if (idx === 8 || idx === 4) { // Thumb and Index tips
+                this.ctx.fillText(`J${idx}: [${x.toFixed(0)}, ${y.toFixed(0)}]`, x + 5, y - 5);
+            }
+        });
+
+        this.ctx.restore();
+    }
+
     private hexToRgba(hex: string, alpha: number): string {
         let color = this.colorCache.get(hex);
         if (!color) {

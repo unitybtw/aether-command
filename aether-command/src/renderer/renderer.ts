@@ -195,7 +195,6 @@ class AetherCommandRenderer {
 
         this.initialize();
         this.setupInactivityListeners();
-        this.setupTiltEffect();
 
         window.electronAPI.onVisibilityChanged((visible) => {
             this.isVisible = visible;
@@ -228,22 +227,22 @@ class AetherCommandRenderer {
         window.addEventListener('click', () => this.wakeUp());
     }
 
-    private setupTiltEffect() {
-        const panels = document.querySelectorAll('.panel');
+    private currentTilt = { x: 0, y: 0 };
+    private updateTilt(hx: number, hy: number) {
+        if (!this.isVisible) return;
+        const targetX = (hx - 0.5) * 4; // Reduced from 12
+        const targetY = (hy - 0.5) * 4;
         
-        // This will now be called from the main loop using hand coordinates
-        this.updateTilt = (hx: number, hy: number) => {
-            if (!this.isVisible) return;
-            const targetX = (hx - 0.5) * 12;
-            const targetY = (hy - 0.5) * 12;
-            const transform = `perspective(1200px) rotateX(${-targetY}deg) rotateY(${targetX}deg)`;
-            panels.forEach((panel: any) => {
-                panel.style.transform = transform;
-            });
-        };
+        // Dynamic Smoothing
+        this.currentTilt.x += (targetX - this.currentTilt.x) * 0.1;
+        this.currentTilt.y += (targetY - this.currentTilt.y) * 0.1;
+        
+        const panels = document.querySelectorAll('.panel');
+        const transform = `perspective(1500px) rotateX(${-this.currentTilt.y}deg) rotateY(${this.currentTilt.x}deg)`;
+        panels.forEach((panel: any) => {
+            panel.style.transform = transform;
+        });
     }
-
-    private updateTilt: (x: number, y: number) => void = () => {};
 
     private estimateBrightness() {
         if (!this.video.videoWidth) return;

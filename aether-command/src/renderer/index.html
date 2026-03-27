@@ -244,6 +244,14 @@
             box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
             transform: translateY(-2px);
         }
+        button, select, .status-pill {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            cursor: pointer;
+        }
+        button:active, select:active, .status-pill:active {
+            transform: scale(0.95);
+            filter: brightness(1.2);
+        }
         /* Settings Styles */
         .setting-group {
             margin-bottom: 24px;
@@ -311,14 +319,20 @@
             background: rgba(255, 255, 255, 0.02);
             border-radius: 20px;
             border: 1px solid rgba(255, 255, 255, 0.03);
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             animation: slide-up-fade 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
             animation-delay: calc(var(--delay, 0) * 0.08s);
+            cursor: pointer;
         }
         .gesture-row:hover {
             background: rgba(0, 229, 255, 0.03);
             border-color: rgba(0, 229, 255, 0.2);
-            transform: translateX(4px);
+            transform: translateX(4px) scale(1.01);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .gesture-row:active {
+            transform: scale(0.97) translateXStrict(2px);
+            background: rgba(0, 229, 255, 0.08);
         }
         .gesture-row.active {
             background: rgba(0, 229, 255, 0.08);

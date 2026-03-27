@@ -45,13 +45,29 @@ export class VFXManager {
         if (this.particles.length > 0) {
             this.ctx.save();
             this.ctx.globalCompositeOperation = "lighter";
-            this.particles.forEach(p => {
-                const alpha = Math.max(0, p.life);
+            
+            // Batch Drawing Optimization: Group by color to reduce state changes
+            const colors = [...new Set(this.particles.map(p => p.color || this.baseColor))];
+            
+            colors.forEach(color => {
                 this.ctx.beginPath();
-                this.ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
-                this.ctx.fillStyle = this.hexToRgba(p.color || this.baseColor, alpha);
+                this.ctx.fillStyle = color;
+                this.particles.filter(p => (p.color || this.baseColor) === color).forEach(p => {
+                    const alpha = Math.max(0, p.life);
+                    const size = p.size * alpha;
+                    // Using Rect instead of Arc for tiny particles (< 4px) to save GPU cycles
+                    if (size < 4) {
+                        this.ctx.rect(p.x - size/2, p.y - size/2, size, size);
+                    } else {
+                        // MoveTo + Arc for batching isn't straightforward, so we do separate arcs
+                        // but only for large ones. 
+                        this.ctx.moveTo(p.x + size, p.y);
+                        this.ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+                    }
+                });
                 this.ctx.fill();
             });
+            
             this.ctx.restore();
         }
     }

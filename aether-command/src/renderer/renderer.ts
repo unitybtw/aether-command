@@ -142,6 +142,10 @@ class AetherCommandRenderer {
     private settingElements: Record<string, HTMLInputElement | HTMLSelectElement> = {};
     private saveTimeout: any = null;
     private isUIPriority: boolean = false;
+    private isInterlocking: boolean = false;
+    private interlockTimeout: any = null;
+    private logBuffer: string[] = [];
+    private lastLogUpdateTime: number = 0;
 
     private readonly SUSPEND_TIMEOUT_MS = 300000;
     private currentBrightness: number = 0;
@@ -473,8 +477,17 @@ class AetherCommandRenderer {
             settingsPanel.addEventListener('mouseleave', () => this.isUIPriority = false);
         }
 
-        // Global key listeners ... (next line was search.addEventListener)
+        // Log Search & Interaction Interlock
         const search = document.getElementById('log-search') as HTMLInputElement;
+        
+        // Bind ALL interactive elements to the Zero-Hitch Interlock
+        const interactiveElements = document.querySelectorAll('button, select, input, .gesture-row');
+        interactiveElements.forEach(el => {
+            el.addEventListener('mousedown', () => this.pauseTracking(600));
+            el.addEventListener('mouseenter', () => this.isUIPriority = true);
+            el.addEventListener('mouseleave', () => this.isUIPriority = false);
+        });
+
         if (search) {
             search.addEventListener('input', () => {
                 const term = search.value.toLowerCase();
@@ -784,10 +797,17 @@ class AetherCommandRenderer {
         }
 
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Zero-Hitch Interlock: If interacting with UI, yield absolute priority
+        if (this.isInterlocking) {
+            requestAnimationFrame(() => this.loop());
+            return;
+        }
+
         this.vfx.update();
 
         try {
-            // Priority System: Skip frames if user is interacting with UI or suspended
+            // Priority System
             let skipRate = 1;
             if (this.isSuspended) skipRate = 4;
             else if (this.isUIPriority) skipRate = 2; // Yield 50% CPU to UI during settings adjustment
@@ -1252,6 +1272,7 @@ class AetherCommandRenderer {
 
             if (!continuous) {
                 this.gestureLocked = true;
+                this.pauseTracking(400); // 400ms Absolute UI Priority
                 setTimeout(() => { this.gestureLocked = false; }, 500);
             }
 
@@ -1270,8 +1291,22 @@ class AetherCommandRenderer {
         }
     }
 
+    private pauseTracking(ms: number) {
+        if (this.interlockTimeout) clearTimeout(this.interlockTimeout);
+        this.isInterlocking = true;
+        this.interlockTimeout = setTimeout(() => {
+            this.isInterlocking = false;
+        }, ms);
+    }
+
     private log(msg: string) {
-        if (this.hud) this.hud.updateLog(msg);
+        if (this.hud) {
+            const now = Date.now();
+            if (now - this.lastLogUpdateTime > 100) { // Limit DOM updates to 10Hz
+                this.hud.updateLog(msg);
+                this.lastLogUpdateTime = now;
+            }
+        }
         window.electronAPI.log('info', msg);
     }
 }
